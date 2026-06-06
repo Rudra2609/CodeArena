@@ -23,7 +23,7 @@ Browser → Nginx :80
 
 | Service    | Image / Build   | Port     | Role |
 |------------|----------------|----------|------|
-| `nginx`    | nginx:alpine    | 80 ← host | Reverse proxy |
+| `nginx`    | nginx:alpine    | 8080 ← host | Reverse proxy |
 | `frontend` | ./frontend      | 3000 internal | React + Monaco editor |
 | `api`      | ./api           | 8000 internal | FastAPI: submit, poll, problems |
 | `worker`   | ./worker        | —        | Celery worker — runs code in Docker |
@@ -93,8 +93,8 @@ make up
 make test-submit
 ```
 
-- App UI:    http://localhost
-- API docs:  http://localhost/api/docs
+- App UI:    http://localhost:8080
+- API docs:  http://localhost:8080/api/docs
 - Flower:    http://localhost:5555
 
 ## Submission Flow
