@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import Split from "react-split";
 import VerdictBadge from "./components/VerdictBadge";
 import { submitCode, pollSubmission, fetchProblems } from "./api/judgeApi";
 
@@ -127,7 +128,15 @@ export default function App() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading]         = useState(false);
   const [activeTab, setActiveTab]     = useState("editor"); // editor | results
+  const [isMobile, setIsMobile]       = useState(window.innerWidth <= 768);
   const pollRef = useRef(null);
+
+  // Responsive split tracking
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Load problem list on mount
   useEffect(() => {
@@ -300,7 +309,13 @@ export default function App() {
       </header>
 
       {/* ── Main layout ───────────────────────────────── */}
-      <div className="workspace">
+      <Split 
+        className="workspace split"
+        sizes={[65, 35]}
+        minSize={isMobile ? 250 : 350}
+        direction={isMobile ? 'vertical' : 'horizontal'}
+        gutterSize={8}
+      >
         {/* Left: Monaco editor */}
         <section className="editor-pane">
           <Editor
@@ -430,7 +445,7 @@ export default function App() {
             </div>
           )}
         </aside>
-      </div>
+      </Split>
     </div>
   );
 }
