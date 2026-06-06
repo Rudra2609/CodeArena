@@ -1,0 +1,93 @@
+{
+  "manifest_version": 3,
+  "name": "CodeArena",
+  "version": "1.0",
+  "description": "Send competitive programming test cases directly to your local CodeArena.",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": [
+    "*://codeforces.com/*",
+    "*://*.codeforces.com/*",
+    "*://hackerrank.com/*",
+    "*://*.hackerrank.com/*",
+    "*://atcoder.jp/*",
+    "*://*.atcoder.jp/*",
+    "*://cses.fi/*",
+    "*://*.cses.fi/*",
+    "*://codechef.com/*",
+    "*://*.codechef.com/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://codeforces.com/problemset/problem/*/*",
+        "*://*.codeforces.com/problemset/problem/*/*",
+        "*://codeforces.com/contest/*/problem/*",
+        "*://*.codeforces.com/contest/*/problem/*",
+        "*://codeforces.com/gym/*/problem/*",
+        "*://*.codeforces.com/gym/*/problem/*",
+        "*://hackerrank.com/challenges/*",
+        "*://*.hackerrank.com/challenges/*",
+        "*://atcoder.jp/contests/*/tasks/*",
+        "*://*.atcoder.jp/contests/*/tasks/*",
+        "*://cses.fi/problemset/task/*",
+        "*://*.cses.fi/problemset/task/*",
+        "*://codechef.com/problems/*",
+        "*://*.codechef.com/problems/*",
+        "*://codechef.com/*/problems/*",
+        "*://*.codechef.com/*/problems/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://codeforces.com/*",
+        "*://*.codeforces.com/*",
+        "*://atcoder.jp/*",
+        "*://*.atcoder.jp/*",
+        "*://cses.fi/*",
+        "*://*.cses.fi/*",
+        "*://codechef.com/*",
+        "*://*.codechef.com/*"
+      ],
+      "js": ["auto_submit.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": [
+        "*://atcoder.jp/*",
+        "*://*.atcoder.jp/*",
+        "*://codechef.com/*",
+        "*://*.codechef.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeArena</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">⚡</span>
+      <span class="app-name">CodeArena</span>
+    </div>
+    <span id="platform-badge" class="platform-badge hidden"></span>
+  </header>
+
+  <!-- ── Loading state ──────────────────────── -->
+  <div id="state-loading" class="state">
+    <div class="spinner"></div>
+    <p class="state-msg">Scanning page…</p>
+  </div>
+
+  <!-- ── Unsupported page ───────────────────── -->
+  <div id="state-unsupported" class="state hidden">
+    <p class="state-icon">🔍</p>
+    <p class="state-title">No problem detected</p>
+    <p class="state-sub">
+      Navigate to a problem on<br/>
+      <strong>Codeforces · HackerRank</strong><br/>
+      <strong>AtCoder · CSES · CodeChef</strong>
+    </p>
+  </div>
+
+  <!-- ── Error state ────────────────────────── -->
+  <div id="state-error" class="state hidden">
+    <p class="state-icon">⚠️</p>
+    <p class="state-title">Extraction failed</p>
+    <p id="error-msg" class="state-sub"></p>
+  </div>
+
+  <!-- ── Main content ───────────────────────── -->
+  <div id="state-main" class="main hidden">
+
+    <!-- Problem title -->
+    <div class="problem-header">
+      <span class="problem-icon">📄</span>
+      <span id="problem-title" class="problem-title"></span>
+    </div>
+
+    <!-- Test case tabs -->
+    <div class="tabs-row" id="tabs-row"></div>
+
+    <!-- Test case panel -->
+    <div class="panel">
+      <div class="panel-section">
+        <label class="panel-label">INPUT</label>
+        <pre id="stdin-display" class="code-block"></pre>
+      </div>
+      <div class="panel-section">
+        <label class="panel-label">EXPECTED OUTPUT</label>
+        <pre id="expected-display" class="code-block"></pre>
+      </div>
+    </div>
+
+    <!-- Language selector -->
+    <div class="lang-row">
+      <label class="lang-label" for="lang-select">Language</label>
+      <select id="lang-select" class="lang-select">
+        <option value="python"     selected>Python 3</option>
+        <option value="cpp">      C++ 17</option>
+        <option value="cpp23">    C++ 23</option>
+        <option value="java">     Java 21</option>
+        <option value="javascript">Node.js 20</option>
+      </select>
+    </div>
+
+    <!-- CTA buttons -->
+    <div class="btn-row">
+      <button id="btn-send" class="btn btn-primary">
+        🚀 Open in CodeArena
+      </button>
+      <button id="btn-copy" class="btn btn-ghost">
+        📋 Copy Input
+      </button>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────
+#  Online Code Judge  —  docker-compose.yml
+#
+#  Services
+#  ├── nginx       Reverse proxy (port 80)
+#  ├── frontend    React + Monaco editor (port 3000 internal)
+#  ├── api         FastAPI submission service (port 8000 internal)
+#  ├── worker      Celery worker  ← spawns sandbox containers
+#  ├── flower      Celery monitor (port 5555 exposed)
+#  ├── redis       Job broker + result cache
+#  └── postgres    Persistent app data
+#
+#  The KEY design: worker mounts /var/run/docker.sock so it can
+#  call the HOST Docker daemon to spawn sibling sandbox containers.
+#  Code files are written to /tmp/judge on the HOST so the
+#  daemon can bind-mount them into execution containers.
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Nginx ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - judge_net
+    restart: unless-stopped
+
+  # ── Frontend ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    networks:
+      - judge_net
+    restart: unless-stopped
+
+  # ── API ────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://judge:${POSTGRES_PASSWORD}@postgres:5432/judge_db
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - judge_net
+    restart: unless-stopped
+
+  # ── Worker ─────────────────────────────────────────────────
+  # Needs: Docker socket (to spawn execution containers)
+  #        /tmp/judge  (host path shared with sibling containers)
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # Docker socket mount
+      - /tmp/judge:/tmp/judge                         # Host-path temp dir
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg2://judge:${POSTGRES_PASSWORD}@postgres:5432/judge_db
+      JUDGE_TMP_DIR: /tmp/judge
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - judge_net
+    restart: unless-stopped
+    user: root  # Required for docker socket access; harden in production
+
+  # ── Flower ─────────────────────────────────────────────────
+  flower:
+    image: mher/flower:2.0
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    networks:
+      - judge_net
+    restart: unless-stopped
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - judge_net
+    restart: unless-stopped
+
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: judge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: judge_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge -d judge_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - judge_net
+    restart: unless-stopped
+
+# ── Volumes ────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+
+# ── Networks ───────────────────────────────────────────────────
+networks:
+  judge_net:
+    driver: bridge
