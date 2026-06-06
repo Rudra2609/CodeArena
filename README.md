@@ -134,8 +134,9 @@ Celery Worker (picks up from Redis):
 |------------|----------------|----------|
 | Python 3.11 | python:3.11-slim | No |
 | C++ (g++17) | gcc:13          | Yes |
-| Java 21     | openjdk:21-slim | Yes |
-| Node.js 20  | node:20-alpine  | No |
+| C++ (g++23) | gcc:14          | Yes |
+| Java 21     | eclipse-temurin:21-jdk-alpine | Yes |
+| JavaScript (Node 20) | node:20-alpine  | No |
 
 ## Project Structure
 
