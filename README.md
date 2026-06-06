@@ -1,11 +1,20 @@
-# CodeArena
+# ⚔️ CodeArena
 
-A production-grade online judge built entirely with Docker. Every code submission executes inside a freshly-spawned, isolated container with hard resource limits — the same pattern used by Codeforces, LeetCode, and AtCoder under the hood.
+A production-grade online judge and personal code execution sandbox built entirely with Docker. Every code submission executes inside a freshly-spawned, isolated container with hard resource limits — mimicking the exact architecture used by competitive programming platforms like Codeforces, LeetCode, and AtCoder.
 
-## Architecture
+CodeArena comes with a **powerful Chrome Extension** that allows you to extract test cases from popular competitive programming websites with a single click and beam them directly into your local judge environment.
 
-```
-Browser → Nginx :80
+## 🚀 Key Features
+
+* **Instant Test Case Extraction:** Includes a custom Chrome/Edge Extension that scrapes test cases from Codeforces, AtCoder, CSES, HackerRank, and CodeChef and automatically populates the editor.
+* **True Docker Sandboxing:** User code is compiled and executed in ephemeral Docker containers (`python:3.11-slim`, `gcc:13`, `eclipse-temurin:21`, `node:20-alpine`) without internet access and with strict CPU/RAM/PID limits.
+* **Modern UI:** A beautiful, responsive React frontend featuring a Monaco Editor (VS Code's editor).
+* **Asynchronous Execution:** Uses Celery and Redis to queue and execute submissions in the background, updating the frontend in real-time.
+
+## 🏗️ Architecture
+
+```text
+Browser → Nginx :8080
                ├── /         → Frontend  (React + Monaco editor)
                └── /api/     → API       (FastAPI)
                                   │
@@ -19,116 +28,44 @@ Browser → Nginx :80
                                   Python  C++   Java  Node.js   ← ephemeral sandboxes
 ```
 
-### Services (docker-compose.yml)
+### Services (`docker-compose.yml`)
 
 | Service    | Image / Build   | Port     | Role |
 |------------|----------------|----------|------|
-| `nginx`    | nginx:alpine    | 8080 ← host | Reverse proxy |
-| `frontend` | ./frontend      | 3000 internal | React + Monaco editor |
-| `api`      | ./api           | 8000 internal | FastAPI: submit, poll, problems |
-| `worker`   | ./worker        | —        | Celery worker — runs code in Docker |
+| `nginx`    | nginx:alpine    | 8080 ← host | Reverse proxy routing traffic to frontend and API |
+| `frontend` | ./frontend      | 3000 internal | React + Monaco editor UI |
+| `api`      | ./api           | 8000 internal | FastAPI: handles code submissions, polling, and data |
+| `worker`   | ./worker        | —        | Celery worker — securely runs code inside isolated Docker containers |
 | `flower`   | mher/flower     | 5555 ← host | Celery job monitor UI |
-| `redis`    | redis:7-alpine  | —        | Job broker + result cache |
-| `postgres` | postgres:16     | —        | Problems + submissions |
+| `redis`    | redis:7-alpine  | —        | Job broker + async result cache |
+| `postgres` | postgres:16     | —        | Stores problem history and submission states |
 
-## Key Docker Concepts Demonstrated
+## ⚡ Quick Start
 
-### 1. Docker socket mounting (the core idea)
-```yaml
-worker:
-  volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
-    - /tmp/judge:/tmp/judge
-```
-The worker container can call `docker.from_env()` and it talks to the **host** Docker daemon. Every sandboxed execution container is a sibling container, not a child. `/tmp/judge` must be a host bind-mount so the daemon can find the path.
-
-### 2. Sandbox resource limits
-```python
-SANDBOX_LIMITS = {
-    "cpu_quota":       50_000,   # 0.5 CPU
-    "cpu_period":     100_000,
-    "mem_limit":       "256m",
-    "memswap_limit":   "256m",   # no swap
-    "pids_limit":      64,       # no fork bombs
-    "network_disabled": True,    # no internet
-}
-```
-
-### 3. Health checks for service ordering
-```yaml
-postgres:
-  healthcheck:
-    test: ["CMD-SHELL", "pg_isready -U judge -d judge_db"]
-    interval: 5s
-    timeout: 3s
-    retries: 10
-
-api:
-  depends_on:
-    postgres:
-      condition: service_healthy
-```
-
-### 4. Named volumes vs bind mounts
-- `postgres_data`, `redis_data` → named volumes (Docker manages them)
-- `/tmp/judge` → host bind-mount (required for sibling-container code sharing)
-
-### 5. Multi-stage frontend build
-The frontend Dockerfile has two stages: Node (build) → Nginx (serve). The final image contains only the compiled static assets.
-
-## Quick Start
-
+### 1. Launching the Judge Server
+Clone the repository and start the Docker containers:
 ```bash
-# 1. Clone and enter
 git clone https://github.com/YOUR_USERNAME/CodeArena.git
 cd CodeArena
 
-# 2. Pre-pull runtime images (avoids cold start on first submission)
+# Pre-pull runtime images (avoids cold start delay on your first submission)
 make pull-images
 
-# 3. Start everything
-make up
-
-# 4. Test a submission
-make test-submit
+# Build and start everything in the background
+docker compose up --build -d
 ```
+* **App UI:** http://localhost:8080
+* **API Docs:** http://localhost:8080/api/docs
+* **Flower Dashboard:** http://localhost:5555
 
-- App UI:    http://localhost:8080
-- API docs:  http://localhost:8080/api/docs
-- Flower:    http://localhost:5555
+### 2. Installing the Chrome Extension
+To enable the one-click test case extractor:
+1. Open your browser and navigate to `chrome://extensions/` (or `edge://extensions/`).
+2. Turn on **Developer mode** (top right corner).
+3. Click **"Load unpacked"** and select the `chrome-extension` folder located inside your CodeArena repository.
+4. Pin the ⚔️ CodeArena icon to your toolbar! Navigate to any Codeforces or AtCoder problem and click the extension to beam it to your local server.
 
-## Submission Flow
-
-```
-POST /api/submit
-  → DB: INSERT submission (status=PENDING)
-  → Redis: enqueue job
-  → return { id, status: "PENDING" }
-
-GET /api/submissions/{id}   ← frontend polls every 1s
-  → return { status, verdict, output, time_ms }
-
-Celery Worker (picks up from Redis):
-  → DB: UPDATE status=RUNNING
-  → Docker SDK: spawn container with source code bind-mounted
-  → wait(timeout=8s), capture stdout/stderr
-  → evaluate: compare output with expected
-  → DB: UPDATE status=AC|WA|TLE|MLE|RE|CE
-```
-
-## Verdicts
-
-| Code | Meaning |
-|------|---------|
-| AC   | Accepted — output matches expected |
-| WA   | Wrong Answer |
-| TLE  | Time Limit Exceeded (5s default) |
-| MLE  | Memory Limit Exceeded (256MB) |
-| RE   | Runtime Error (non-zero exit) |
-| CE   | Compilation Error |
-| OK   | Executed (no expected output) |
-
-## Supported Languages
+## 📝 Supported Languages
 
 | Language   | Image           | Compile? |
 |------------|----------------|----------|
@@ -138,43 +75,37 @@ Celery Worker (picks up from Redis):
 | Java 21     | eclipse-temurin:21-jdk-alpine | Yes |
 | JavaScript (Node 20) | node:20-alpine  | Yes |
 
-## Project Structure
+## 🛡️ Sandbox Security & Resource Limits
+The worker container communicates with the **host** Docker daemon via a socket mount (`/var/run/docker.sock`). Every sandboxed execution container is a sibling container. 
 
-```
+The following limits are strictly enforced on every submission:
+* **CPU:** 0.5 Cores
+* **RAM:** 256 MB (Swap disabled)
+* **PIDs:** 64 maximum processes (prevents fork bombs)
+* **Network:** Completely disabled (no outbound internet)
+
+## 📊 Verdicts
+
+| Code | Meaning |
+|------|---------|
+| **AC**   | Accepted — output matches expected exactly |
+| **WA**   | Wrong Answer — output does not match |
+| **TLE**  | Time Limit Exceeded (Default: 5 seconds) |
+| **MLE**  | Memory Limit Exceeded (> 256MB) |
+| **RE**   | Runtime Error (Non-zero exit code) |
+| **CE**   | Compilation Error (or syntax error in Python/JS) |
+| **OK**   | Executed (Code ran successfully, but no expected output was provided to check against) |
+
+## 📂 Project Structure
+
+```text
 CodeArena/
-├── docker-compose.yml
-├── .env.example
-├── Makefile
-├── nginx/
-│   └── nginx.conf
-├── api/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── main.py          ← FastAPI app + endpoints
-│   ├── models.py        ← SQLAlchemy ORM
-│   ├── schemas.py       ← Pydantic request/response
-│   ├── database.py      ← Async engine + session
-│   └── celery_client.py ← Thin task dispatcher
-├── worker/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── celery_app.py    ← Celery configuration
-│   ├── tasks.py         ← Task entry point
-│   ├── executor.py      ← Docker SDK sandbox  ← THE key file
-│   └── judge.py         ← Verdict comparison
-├── frontend/
-│   ├── Dockerfile       ← Multi-stage Node → Nginx
-│   ├── src/
-│   │   ├── App.jsx      ← Main UI
-│   │   ├── api/judgeApi.js
-│   │   └── components/VerdictBadge.jsx
-└── db/
-    └── init.sql         ← Schema + seed problems
+├── chrome-extension/    ← Browser extension for test-case extraction
+├── docker-compose.yml   ← Core orchestration
+├── Makefile             ← Helper commands
+├── nginx/               ← Reverse proxy configurations
+├── api/                 ← FastAPI backend + Database ORM
+├── worker/              ← Celery worker + Docker SDK Sandbox executor
+├── frontend/            ← React UI + Monaco Editor
+└── db/                  ← PostgreSQL initialization scripts
 ```
-
-## CV talking points
-
-- "Every submission spawns a freshly-created Docker container with 0.5 CPU, 256 MB RAM, no network, and PID limit — using the Docker Python SDK via socket mount"
-- "Used Celery + Redis for async job queuing with `task_acks_late=True` for at-least-once delivery guarantees"
-- "Nginx reverse-proxy routes `/api` to FastAPI and `/` to a multi-stage React build served by an embedded Nginx"
-- "PostgreSQL health checks enforce proper startup ordering across all dependent services"
