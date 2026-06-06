@@ -509,3 +509,57 @@ body {
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); border: 2px solid transparent; background-clip: padding-box; }
+
+/* ── Responsive Mobile Layout ────────────────────────────── */
+@media (max-width: 768px) {
+  .app {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .topbar-left {
+    justify-content: center;
+  }
+  
+  .topbar-right {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .workspace {
+    flex-direction: column;
+  }
+  
+  .editor-pane {
+    flex: 1;
+    min-height: 35vh;
+  }
+  
+  .io-pane {
+    width: 100%;
+    flex: 1;
+    min-height: 35vh;
+  }
+  
+  .ext-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .ext-link {
+    margin-left: 0;
+  }
+  
+  .btn-run {
+    flex: 1;
+    justify-content: center;
+  }
+}
