@@ -1,4 +1,4 @@
-# Online Code Judge
+# CodeArena
 
 A production-grade online judge built entirely with Docker. Every code submission executes inside a freshly-spawned, isolated container with hard resource limits — the same pattern used by Codeforces, LeetCode, and AtCoder under the hood.
 
@@ -80,8 +80,8 @@ The frontend Dockerfile has two stages: Node (build) → Nginx (serve). The fina
 
 ```bash
 # 1. Clone and enter
-git clone https://github.com/you/online-judge
-cd online-judge
+git clone https://github.com/YOUR_USERNAME/CodeArena.git
+cd CodeArena
 
 # 2. Pre-pull runtime images (avoids cold start on first submission)
 make pull-images
@@ -140,7 +140,7 @@ Celery Worker (picks up from Redis):
 ## Project Structure
 
 ```
-online-judge/
+CodeArena/
 ├── docker-compose.yml
 ├── .env.example
 ├── Makefile
