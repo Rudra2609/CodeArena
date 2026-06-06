@@ -132,11 +132,11 @@ Celery Worker (picks up from Redis):
 
 | Language   | Image           | Compile? |
 |------------|----------------|----------|
-| Python 3.11 | python:3.11-slim | No |
+| Python 3.11 | python:3.11-slim | Yes |
 | C++ (g++17) | gcc:13          | Yes |
 | C++ (g++23) | gcc:14          | Yes |
 | Java 21     | eclipse-temurin:21-jdk-alpine | Yes |
-| JavaScript (Node 20) | node:20-alpine  | No |
+| JavaScript (Node 20) | node:20-alpine  | Yes |
 
 ## Project Structure
 
