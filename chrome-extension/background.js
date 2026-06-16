@@ -8,7 +8,7 @@
 
 const JUDGE_BASE_URL = "http://localhost:8080";
 
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "openInJudge") {
     const { stdin, expected, cases, language, problemTitle, problemUrl } = request.payload;
 
@@ -61,6 +61,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
              if (aceEl && window.ace) {
                 window.ace.edit(aceEl).setValue(injectedCode);
              }
+          }
+        } catch(e) {}
+        
+        try {
+          const textareas = document.querySelectorAll('textarea');
+          for (let ta of textareas) {
+            if (ta.className.includes('monaco') || ta.closest('.monaco-editor') || ta.name === 'sourceCode') {
+              const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+              if (nativeInputValueSetter) {
+                nativeInputValueSetter.call(ta, injectedCode);
+              } else {
+                ta.value = injectedCode;
+              }
+              ta.dispatchEvent(new Event('input', { bubbles: true }));
+              ta.dispatchEvent(new Event('change', { bubbles: true }));
+            }
           }
         } catch(e) {}
       },
