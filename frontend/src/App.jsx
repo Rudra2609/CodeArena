@@ -166,32 +166,57 @@ export default function App() {
   }
 
   // Submit
-  async function handleSubmit() {
+  async function handleSubmit(caseIndex = null) {
     setLoading(true);
-    setSubmissions(cases.map(() => ({ status: "PENDING" })));
     clearInterval(pollRef.current);
     setActiveTab("results");
 
+    setSubmissions(prev => {
+      let next = [...prev];
+      if (next.length !== cases.length) {
+        next = cases.map(() => ({ status: "IDLE" }));
+      }
+      if (caseIndex !== null) {
+        next[caseIndex] = { status: "PENDING" };
+      } else {
+        next = cases.map(() => ({ status: "PENDING" }));
+      }
+      return next;
+    });
+
+    let casesToRun = caseIndex !== null 
+      ? [{ c: cases[caseIndex], i: caseIndex }]
+      : cases.map((c, i) => ({ c, i }));
+
     try {
       const pendings = await Promise.all(
-        cases.map(c => submitCode({
+        casesToRun.map(item => submitCode({
           language,
           source_code:     code,
-          stdin:           c.stdin || "",
-          expected_output: c.expected || "",
+          stdin:           item.c.stdin || "",
+          expected_output: item.c.expected || "",
           problem_id:      selectedProblem?.id || null,
-        }))
+        }).then(res => ({ res, i: item.i })))
       );
 
-      setSubmissions(pendings);
+      setSubmissions(prev => {
+        const next = [...prev];
+        pendings.forEach(item => { next[item.i] = item.res; });
+        return next;
+      });
 
       pollRef.current = setInterval(async () => {
         const updated = await Promise.all(
-          pendings.map(p => pollSubmission(p.id))
+          pendings.map(item => pollSubmission(item.res.id).then(res => ({ res, i: item.i })))
         );
-        setSubmissions(updated);
         
-        const allDone = updated.every(u => !["PENDING", "RUNNING"].includes(u.status));
+        setSubmissions(prev => {
+           const nextSubs = [...prev];
+           updated.forEach(item => { nextSubs[item.i] = item.res; });
+           return nextSubs;
+        });
+
+        const allDone = updated.every(item => !["PENDING", "RUNNING"].includes(item.res.status));
         if (allDone) {
           clearInterval(pollRef.current);
           setLoading(false);
@@ -300,10 +325,10 @@ export default function App() {
 
           <button
             className={`btn-run ${loading ? "loading" : ""}`}
-            onClick={loading ? handleStop : handleSubmit}
+            onClick={loading ? handleStop : () => handleSubmit(null)}
             style={loading ? { background: "#dc3545", color: "white" } : {}}
           >
-            {loading ? "⏹ Stop" : "▶ Run"}
+            {loading ? "⏹ Stop" : "▶ Run all"}
           </button>
         </div>
       </header>
@@ -360,11 +385,21 @@ export default function App() {
             <div className="io-body">
               {cases.map((c, i) => (
                 <div key={i} className="testcase-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", alignItems: "center" }}>
                     <strong style={{ color: "#fff" }}>Case {i + 1}</strong>
-                    {cases.length > 1 && (
-                       <button className="btn-delete" onClick={() => setCases(cases.filter((_, idx) => idx !== i))}>✕</button>
-                    )}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <button 
+                        className="btn-run-sm" 
+                        onClick={() => handleSubmit(i)}
+                        disabled={loading}
+                        title={`Run Case ${i + 1}`}
+                      >
+                        ▶ Run
+                      </button>
+                      {cases.length > 1 && (
+                         <button className="btn-delete" onClick={() => setCases(cases.filter((_, idx) => idx !== i))}>✕</button>
+                      )}
+                    </div>
                   </div>
                   <div className="io-section">
                     <label className="io-label">Stdin</label>
@@ -416,7 +451,17 @@ export default function App() {
               {submissions.map((sub, i) => (
                 <div key={i} className="testcase-card">
                   <div className="result-header">
-                    <strong style={{ color: "#fff" }}>Case {i + 1}</strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <strong style={{ color: "#fff" }}>Case {i + 1}</strong>
+                      <button 
+                        className="btn-run-sm" 
+                        onClick={() => handleSubmit(i)}
+                        disabled={loading}
+                        title={`Run Case ${i + 1}`}
+                      >
+                        ▶ Run
+                      </button>
+                    </div>
                     <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
                       <VerdictBadge verdict={sub.verdict || sub.status} />
                       {sub.time_ms != null && (

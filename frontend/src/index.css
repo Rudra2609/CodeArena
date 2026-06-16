@@ -244,6 +244,28 @@ body {
   box-shadow: 0 4px 12px var(--green-glow);
 }
 
+.btn-run-sm {
+  background: var(--green);
+  color: #022c22;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px var(--green-glow);
+}
+.btn-run-sm:hover:not(:disabled) {
+  background: #34d399;
+  transform: translateY(-1px);
+}
+.btn-run-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--text-muted);
+}
+
 /* ── Workspace ───────────────────────────────────────────── */
 .workspace {
   display: flex;
