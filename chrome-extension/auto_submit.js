@@ -108,41 +108,43 @@
       const turnstileInputs = Array.from(document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]'));
       const validTurnstile = turnstileInputs.find(t => t && t.value && t.value.trim() !== "");
       
-      if (hasTurnstileScript || turnstileInputs.length > 0 || attempts < 6) {
+      if (hasTurnstileScript || turnstileInputs.length > 0 || attempts < 20) {
         if (hasTurnstileScript || turnstileInputs.length > 0) {
           if (!validTurnstile) {
             return; // Wait for Turnstile to inject the input AND for the user to solve it!
           }
         } else {
-          return; // Wait up to 3 seconds for the widget to appear in the DOM
+          return; // Wait up to 10 seconds for the widget to appear in the DOM
         }
       }
 
       clearInterval(pollInterval);
-      cleanUrl();
       
-      try {
-        let sBtn = document.querySelector('#submit');
-        if (!sBtn) sBtn = document.querySelector('#btn-submit');
-        if (!sBtn) sBtn = document.querySelector('form button[type="submit"].btn-primary');
-        if (!sBtn) sBtn = document.querySelector('button[type="submit"].btn-primary');
-        
-        if (sBtn) {
-          sBtn.disabled = false;
-          sBtn.classList.remove('disabled');
-          sBtn.click();
-        } else {
-          // Fallback to submitting the form directly
-          const form = document.querySelector('form');
-          if (form) form.submit();
+      setTimeout(() => {
+        try {
+          let sBtn = document.querySelector('#submit');
+          if (!sBtn) sBtn = document.querySelector('#btn-submit');
+          if (!sBtn) sBtn = document.querySelector('form button[type="submit"].btn-primary');
+          if (!sBtn) sBtn = document.querySelector('button[type="submit"].btn-primary');
+          
+          if (sBtn) {
+            sBtn.disabled = false;
+            sBtn.classList.remove('disabled');
+            sBtn.click();
+          } else {
+            // Fallback to submitting the form directly
+            const form = document.querySelector('form');
+            if (form) form.submit();
+          }
+          cleanUrl();
+        } catch (err) {
+          console.error("CodeArena: Failed to click submit button on AtCoder", err);
         }
-      } catch (err) {
-        console.error("CodeArena: Failed to click submit button on AtCoder", err);
-      }
+      }, 500);
     }, 500);
 
-    // Stop polling after 30 seconds
-    setTimeout(() => clearInterval(pollInterval), 30000);
+    // Stop polling after 5 minutes
+    setTimeout(() => clearInterval(pollInterval), 300000);
   }
 
   // CSES
