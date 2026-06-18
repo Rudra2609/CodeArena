@@ -92,27 +92,63 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         let pollCount = 0;
         const interval = setInterval(() => {
           pollCount++;
-          const inputs = document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
-          let solved = false;
+          const shouldLog = pollCount % 4 === 1;
           
+          // Method 1: Check Turnstile JS API
+          let apiResponse = null;
+          try {
+            if (window.turnstile) {
+              apiResponse = window.turnstile.getResponse();
+            }
+          } catch(e) {}
+          
+          // Method 2: Check hidden inputs
+          const inputs = document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
+          let inputValue = null;
           for (const inp of inputs) {
             if (inp.value && inp.value.trim() !== "") {
-              solved = true;
-              console.log("[CodeArena MAIN] Turnstile SOLVED! Token length:", inp.value.length);
+              inputValue = inp.value;
               break;
             }
           }
-
-          if (!solved && inputs.length === 0 && pollCount >= 6) {
-            solved = true;
-            console.log("[CodeArena MAIN] No Turnstile found, proceeding.");
+          
+          // Method 3: Check iframe data-state
+          let iframeState = null;
+          const turnstileIframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
+          if (turnstileIframe) {
+            iframeState = turnstileIframe.getAttribute('data-state');
           }
-
-          if (!solved) {
-            if (pollCount % 4 === 1) {
-              console.log("[CodeArena MAIN] Poll #" + pollCount + ": waiting for Turnstile... inputs=" + inputs.length);
+          
+          // Method 4: Check .cf-turnstile data-response
+          let widgetResponse = null;
+          const widget = document.querySelector('[data-sitekey]');
+          if (widget) {
+            widgetResponse = widget.getAttribute('data-response') || widget.dataset.response;
+          }
+          
+          if (shouldLog) {
+            console.log("[CodeArena MAIN] Poll #" + pollCount + ":" +
+              " inputs=" + inputs.length +
+              " inputValue=" + (inputValue ? inputValue.length + " chars" : "null") +
+              " apiResponse=" + (apiResponse ? apiResponse.length + " chars" : "null") +
+              " iframeState=" + iframeState +
+              " widgetResponse=" + (widgetResponse ? widgetResponse.length + " chars" : "null") +
+              " hasTurnstileAPI=" + !!window.turnstile
+            );
+          }
+          
+          // Check if solved by ANY method
+          const token = apiResponse || inputValue || widgetResponse;
+          
+          if (!token) {
+            // No Turnstile on page at all
+            if (inputs.length === 0 && !window.turnstile && !turnstileIframe && pollCount >= 6) {
+              console.log("[CodeArena MAIN] No Turnstile found, proceeding.");
+            } else {
+              return; // Keep waiting
             }
-            return;
+          } else {
+            console.log("[CodeArena MAIN] Turnstile SOLVED! Token length: " + token.length);
           }
 
           clearInterval(interval);
