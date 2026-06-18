@@ -92,9 +92,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       target: { tabId: sender.tab.id },
       world: "MAIN",
       func: () => {
-        console.log("[CodeArena MAIN] Starting Turnstile interception...");
+        console.log("[CodeArena MAIN] Starting non-invasive Turnstile polling...");
         
+        let submitted = false;
         function doSubmit() {
+          if (submitted) return;
+          submitted = true;
+          console.log("[CodeArena MAIN] TURNSTILE SOLVED! Submitting...");
+          
           setTimeout(() => {
             const sBtn = document.querySelector('#submit') 
               || document.querySelector('button#submit')
@@ -114,112 +119,67 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }, 300);
         }
         
-        let submitted = false;
-        function onTurnstileSolved(token) {
-          if (submitted) return;
-          submitted = true;
-          console.log("[CodeArena MAIN] TURNSTILE SOLVED! Token length: " + (token ? token.length : 0));
-          doSubmit();
-        }
-        
-        // METHOD 1: Intercept the hidden input value setter using Object.defineProperty
-        const originalSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-        const originalGetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').get;
-        
-        const allTurnstileInputs = document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
-        console.log("[CodeArena MAIN] Found " + allTurnstileInputs.length + " turnstile input(s) to intercept");
-        
-        allTurnstileInputs.forEach((inp, i) => {
-          Object.defineProperty(inp, 'value', {
-            set: function(val) {
-              console.log("[CodeArena MAIN] Input " + i + " value SET! Length: " + (val ? val.length : 0));
-              originalSetter.call(this, val);
-              if (val && val.trim() !== "") {
-                onTurnstileSolved(val);
-              }
-            },
-            get: function() {
-              return originalGetter.call(this);
-            },
-            configurable: true
-          });
-        });
-        
-        // METHOD 2: Watch for NEW inputs being added via MutationObserver
-        const observer = new MutationObserver((mutations) => {
-          for (const mut of mutations) {
-            for (const node of mut.addedNodes) {
-              if (node.nodeType !== 1) continue;
-              const newInputs = node.matches && node.matches('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]') 
-                ? [node] 
-                : Array.from(node.querySelectorAll ? node.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]') : []);
-              for (const newInp of newInputs) {
-                console.log("[CodeArena MAIN] New turnstile input detected!");
-                if (newInp.value && newInp.value.trim() !== "") {
-                  onTurnstileSolved(newInp.value);
-                }
-                // Also intercept its setter
-                Object.defineProperty(newInp, 'value', {
-                  set: function(val) {
-                    originalSetter.call(this, val);
-                    if (val && val.trim() !== "") onTurnstileSolved(val);
-                  },
-                  get: function() { return originalGetter.call(this); },
-                  configurable: true
-                });
-              }
-            }
-          }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        
-        // METHOD 3: Fallback polling with ALL possible detection
+        // ONLY non-invasive polling - no DOM modifications
         let pollCount = 0;
         const interval = setInterval(() => {
           if (submitted) { clearInterval(interval); return; }
           pollCount++;
           
-          // Try turnstile API with widget container
+          // Check 1: turnstile.getResponse() API
           try {
             if (window.turnstile) {
-              // Try without args
               let resp = window.turnstile.getResponse();
               if (!resp) {
-                // Try with widget container
                 const container = document.querySelector('[data-sitekey]');
                 if (container) resp = window.turnstile.getResponse(container);
               }
-              if (resp) { onTurnstileSolved(resp); return; }
+              if (resp) {
+                console.log("[CodeArena MAIN] Token from API, length: " + resp.length);
+                doSubmit();
+                return;
+              }
             }
           } catch(e) {}
           
-          // Check all inputs using native getter (bypasses our defineProperty)
+          // Check 2: Read hidden input values (non-invasive read)
           const inputs = document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
           for (const inp of inputs) {
-            const val = originalGetter.call(inp);
-            if (val && val.trim() !== "") { onTurnstileSolved(val); return; }
+            if (inp.value && inp.value.trim() !== "") {
+              console.log("[CodeArena MAIN] Token from input, length: " + inp.value.length);
+              doSubmit();
+              return;
+            }
           }
           
-          // Check data-response attribute
+          // Check 3: Look for success visual indicator in Turnstile widget
+          const successIndicator = document.querySelector('[data-sitekey] [aria-label*="Success"], [data-sitekey] .success, .cf-turnstile[data-response]');
+          if (successIndicator) {
+            console.log("[CodeArena MAIN] Success indicator found!");
+            doSubmit();
+            return;
+          }
+          
+          // Check 4: data-response attribute on widget
           const widget = document.querySelector('[data-sitekey]');
-          if (widget) {
-            const dr = widget.getAttribute('data-response');
-            if (dr) { onTurnstileSolved(dr); return; }
+          if (widget && widget.getAttribute('data-response')) {
+            console.log("[CodeArena MAIN] Token from data-response attr");
+            doSubmit();
+            return;
           }
           
-          // No turnstile at all? Submit after 3 seconds
+          // No turnstile at all
           if (inputs.length === 0 && !window.turnstile && pollCount >= 6) {
             console.log("[CodeArena MAIN] No Turnstile found, submitting.");
-            onTurnstileSolved("none");
+            doSubmit();
             return;
           }
           
           if (pollCount % 8 === 1) {
-            console.log("[CodeArena MAIN] Poll #" + pollCount + ": waiting... inputs=" + inputs.length);
+            console.log("[CodeArena MAIN] Poll #" + pollCount + ": waiting... inputs=" + inputs.length + " hasTurnstile=" + !!window.turnstile);
           }
         }, 500);
 
-        setTimeout(() => { clearInterval(interval); observer.disconnect(); console.log("[CodeArena MAIN] Timeout."); }, 300000);
+        setTimeout(() => { clearInterval(interval); console.log("[CodeArena MAIN] Timeout."); }, 300000);
       },
       args: []
     });
