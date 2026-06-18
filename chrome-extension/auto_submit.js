@@ -11,9 +11,13 @@
 
   async function injectCodeIntoPage(codeStr) {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "injectMainWorld", code: codeStr }, () => {
+      try {
+        chrome.runtime.sendMessage({ action: "injectMainWorld", code: codeStr }, () => {
+          resolve();
+        });
+      } catch (e) {
         resolve();
-      });
+      }
     });
   }
 
@@ -98,9 +102,13 @@
 
     // 4. Poll for Cloudflare to finish, then submit
     const pollInterval = setInterval(() => {
+      const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"]');
       const turnstile = document.querySelector('input[name="cf-turnstile-response"]');
-      if (turnstile && !turnstile.value) {
-        return; // Wait for the Cloudflare widget to show "Success!"
+      
+      if (hasTurnstileScript) {
+        if (!turnstile || !turnstile.value) {
+          return; // Wait for Turnstile to inject the input AND for the user to solve it!
+        }
       }
 
       clearInterval(pollInterval);
