@@ -85,8 +85,7 @@
          b.textContent && (b.textContent.includes('Toggle Editor') || b.textContent.includes('エディタ'))
        );
     }
-    
-    if (sourceTextarea && sourceTextarea.offsetHeight === 0 && editorToggle) {
+    if (editorToggle && document.querySelector('.CodeMirror')) {
       editorToggle.click();
       await new Promise(r => setTimeout(r, 200));
     }
