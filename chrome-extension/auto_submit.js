@@ -5,9 +5,39 @@
   const action = params.get("judge_action");
   if (action !== "auto_submit") return;
 
-  const code = decodeURIComponent(escape(atob(params.get("code"))));
-  const language = params.get("language");
+  // Read code/language from chrome.storage.local (preferred, keeps URL short)
+  // Falls back to URL params for backward compatibility
+  let code, language;
+  try {
+    const data = await new Promise(resolve => {
+      chrome.storage.local.get("codeArena_pendingSubmit", resolve);
+    });
+    if (data.codeArena_pendingSubmit) {
+      code = data.codeArena_pendingSubmit.code;
+      language = data.codeArena_pendingSubmit.language;
+      // Clean up storage
+      chrome.storage.local.remove("codeArena_pendingSubmit");
+    }
+  } catch(e) {}
+
+  // Fallback to URL params
+  if (!code && params.get("code")) {
+    code = decodeURIComponent(escape(atob(params.get("code"))));
+  }
+  if (!language) {
+    language = params.get("language");
+  }
+
+  if (!code) return;
+
   const hostname = window.location.hostname;
+
+  // Clean URL immediately (remove judge_action param)
+  const cleanedUrl = new URL(window.location.href);
+  cleanedUrl.searchParams.delete("judge_action");
+  cleanedUrl.searchParams.delete("code");
+  cleanedUrl.searchParams.delete("language");
+  window.history.replaceState({}, "", cleanedUrl.toString());
 
   async function injectCodeIntoPage(codeStr) {
     return new Promise((resolve) => {
@@ -21,13 +51,7 @@
     });
   }
 
-  function cleanUrl() {
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.delete("judge_action");
-    newUrl.searchParams.delete("code");
-    newUrl.searchParams.delete("language");
-    window.history.replaceState({}, "", newUrl.toString());
-  }
+
 
   // Codeforces
   if (hostname.includes("codeforces.com")) {
@@ -55,7 +79,7 @@
       const file = new File([code], "solution." + ext, { type: "text/plain" });
       const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
     }
-    cleanUrl();
+
     submitBtn.click();
   }
 
@@ -150,7 +174,7 @@
     const file = new File([code], "solution." + ext, { type: "text/plain" });
     const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
     
-    cleanUrl();
+
     submitBtn.click();
   }
 
@@ -171,7 +195,7 @@
       await injectCodeIntoPage(code);
       
       await new Promise(r => setTimeout(r, 500));
-      cleanUrl();
+
       
       // Re-query the button right before clicking, because Codechef's React SPA 
       // might have re-rendered the DOM and detached our old button reference.

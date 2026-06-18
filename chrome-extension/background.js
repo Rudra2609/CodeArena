@@ -30,11 +30,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "submitToPlatform") {
     const { code, language, problemUrl } = request;
     if (problemUrl) {
-      const submitUrl = new URL(problemUrl);
-      submitUrl.searchParams.set("judge_action", "auto_submit");
-      submitUrl.searchParams.set("code", btoa(unescape(encodeURIComponent(code))));
-      submitUrl.searchParams.set("language", language);
-      chrome.tabs.create({ url: submitUrl.toString() });
+      // Store code in chrome.storage.local to keep the URL short.
+      // Long URLs with base64-encoded code cause Cloudflare Turnstile Error 600010.
+      chrome.storage.local.set({ 
+        codeArena_pendingSubmit: { code, language } 
+      }, () => {
+        const submitUrl = new URL(problemUrl);
+        submitUrl.searchParams.set("judge_action", "auto_submit");
+        chrome.tabs.create({ url: submitUrl.toString() });
+      });
     }
   } else if (request.action === "injectMainWorld") {
     chrome.scripting.executeScript({
@@ -152,13 +156,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
 
           clearInterval(interval);
-          
-          // Clean URL params
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete("judge_action");
-          newUrl.searchParams.delete("code");
-          newUrl.searchParams.delete("language");
-          window.history.replaceState({}, "", newUrl.toString());
 
           // Small delay then submit
           setTimeout(() => {
