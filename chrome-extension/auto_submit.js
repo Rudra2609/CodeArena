@@ -100,17 +100,33 @@
     }
 
     // Wait for Cloudflare Turnstile if present
+    let ticks = 0;
     const pollInterval = setInterval(() => {
-      const turnstile = document.querySelector('input[name="cf-turnstile-response"]');
+      ticks++;
       const sBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
+      if (!sBtn) return;
       
-      if (turnstile && !turnstile.value) {
-        return; // Wait for the Cloudflare widget to show "Success!"
+      const form = sBtn.closest('form');
+      if (!form) return;
+
+      const turnstileInputs = Array.from(form.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]'));
+      const validTurnstile = turnstileInputs.find(i => i.value);
+      const turnstileFrame = form.querySelector('iframe[src*="challenges.cloudflare.com"], iframe[src*="recaptcha"], .cf-turnstile, .g-recaptcha');
+      
+      if (turnstileFrame || turnstileInputs.length > 0 || ticks < 6) {
+         if (turnstileFrame || turnstileInputs.length > 0) {
+            if (!validTurnstile) {
+              return; // Wait for user to solve
+            }
+         } else {
+            return; // Wait for frame to inject
+         }
       }
       
       clearInterval(pollInterval);
       cleanUrl();
-      if (sBtn) sBtn.click();
+      sBtn.disabled = false;
+      sBtn.click();
     }, 500);
 
     // Stop polling after 5 minutes to avoid an infinite loop
