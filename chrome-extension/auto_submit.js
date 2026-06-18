@@ -101,13 +101,19 @@
     }
 
     // 4. Poll for Cloudflare to finish, then submit
+    let attempts = 0;
     const pollInterval = setInterval(() => {
-      const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"], .cf-turnstile, iframe[src*="cloudflare"]');
+      attempts++;
+      const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"], script[src*="recaptcha"], .cf-turnstile, .g-recaptcha, iframe[src*="cloudflare"], iframe[src*="recaptcha"]');
       const turnstile = document.querySelector('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
       
-      if (hasTurnstileScript) {
-        if (!turnstile || !turnstile.value) {
-          return; // Wait for Turnstile to inject the input AND for the user to solve it!
+      if (hasTurnstileScript || turnstile || attempts < 6) {
+        if (hasTurnstileScript || turnstile) {
+          if (!turnstile || !turnstile.value) {
+            return; // Wait for Turnstile to inject the input AND for the user to solve it!
+          }
+        } else {
+          return; // Wait up to 3 seconds for the widget to appear in the DOM
         }
       }
 
@@ -116,7 +122,10 @@
       
       try {
         const sBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
-        if (sBtn) sBtn.click();
+        if (sBtn) {
+          sBtn.disabled = false;
+          sBtn.click();
+        }
       } catch (err) {
         console.error("CodeArena: Failed to click submit button on AtCoder", err);
       }
