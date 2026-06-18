@@ -57,54 +57,53 @@
 
   // AtCoder
   else if (hostname.includes("atcoder.jp")) {
-    const pollInterval = setInterval(async () => {
-      const submitBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
-      if (!submitBtn) return; // Wait until loaded
+    // 1. Immediately set language
+    const langSelect = document.querySelector('select[name="data.LanguageId"]');
+    if (langSelect) {
+      const options = Array.from(langSelect.options);
+      let target = null;
+      if (language.startsWith("cpp")) target = options.find(o => o.text.includes("C++"));
+      else if (language === "python") target = options.find(o => o.text.includes("Python3") || o.text.includes("PyPy3"));
+      else if (language === "java") target = options.find(o => o.text.includes("Java"));
+      else if (language === "javascript") target = options.find(o => o.text.includes("Node.js"));
+      
+      if (target) {
+        langSelect.value = target.value;
+        langSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
 
+    // 2. Disable advanced editor if active
+    const sourceTextarea = document.querySelector('textarea[name="sourceCode"]');
+    let editorToggle = document.querySelector('.btn-toggle-editor, a.btn-toggle-editor');
+    if (!editorToggle) {
+       editorToggle = Array.from(document.querySelectorAll('button, a')).find(b => 
+         b.textContent && (b.textContent.includes('Toggle Editor') || b.textContent.includes('エディタ'))
+       );
+    }
+    
+    if (sourceTextarea && sourceTextarea.offsetHeight === 0 && editorToggle) {
+      editorToggle.click();
+      await new Promise(r => setTimeout(r, 200));
+    }
+    
+    // 3. Inject code
+    await injectCodeIntoPage(code);
+      
+    if (sourceTextarea) {
+      sourceTextarea.value = code;
+      sourceTextarea.dispatchEvent(new Event('input', {bubbles: true}));
+      sourceTextarea.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+
+    // 4. Poll for Cloudflare to finish, then submit
+    const pollInterval = setInterval(() => {
       const turnstile = document.querySelector('input[name="cf-turnstile-response"]');
       if (turnstile && !turnstile.value) {
         return; // Wait for the Cloudflare widget to show "Success!"
       }
 
       clearInterval(pollInterval);
-
-      const langSelect = document.querySelector('select[name="data.LanguageId"]');
-      if (langSelect) {
-        const options = Array.from(langSelect.options);
-        let target = null;
-        if (language.startsWith("cpp")) target = options.find(o => o.text.includes("C++"));
-        else if (language === "python") target = options.find(o => o.text.includes("Python3") || o.text.includes("PyPy3"));
-        else if (language === "java") target = options.find(o => o.text.includes("Java"));
-        else if (language === "javascript") target = options.find(o => o.text.includes("Node.js"));
-        
-        if (target) {
-          langSelect.value = target.value;
-          langSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
-
-      const sourceTextarea = document.querySelector('textarea[name="sourceCode"]');
-      let editorToggle = document.querySelector('.btn-toggle-editor, a.btn-toggle-editor');
-      if (!editorToggle) {
-         editorToggle = Array.from(document.querySelectorAll('button, a')).find(b => 
-           b.textContent && (b.textContent.includes('Toggle Editor') || b.textContent.includes('エディタ'))
-         );
-      }
-      
-      if (sourceTextarea && sourceTextarea.offsetHeight === 0 && editorToggle) {
-        editorToggle.click();
-        await new Promise(r => setTimeout(r, 200));
-      }
-      
-      await injectCodeIntoPage(code);
-        
-      if (sourceTextarea) {
-        sourceTextarea.value = code;
-        sourceTextarea.dispatchEvent(new Event('input', {bubbles: true}));
-        sourceTextarea.dispatchEvent(new Event('change', {bubbles: true}));
-      }
-
-      await new Promise(r => setTimeout(r, 300));
       cleanUrl();
       
       try {
@@ -115,7 +114,8 @@
       }
     }, 500);
 
-    setTimeout(() => clearInterval(pollInterval), 15000);
+    // Stop polling after 30 seconds
+    setTimeout(() => clearInterval(pollInterval), 30000);
   }
 
   // CSES
