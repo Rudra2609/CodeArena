@@ -83,6 +83,72 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       args: [request.code]
     });
     sendResponse({ ok: true });
+  } else if (request.action === "waitTurnstileAndSubmit") {
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id },
+      world: "MAIN",
+      func: () => {
+        console.log("[CodeArena MAIN] Starting Turnstile polling in MAIN world...");
+        let pollCount = 0;
+        const interval = setInterval(() => {
+          pollCount++;
+          const inputs = document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
+          let solved = false;
+          
+          for (const inp of inputs) {
+            if (inp.value && inp.value.trim() !== "") {
+              solved = true;
+              console.log("[CodeArena MAIN] Turnstile SOLVED! Token length:", inp.value.length);
+              break;
+            }
+          }
+
+          if (!solved && inputs.length === 0 && pollCount >= 6) {
+            solved = true;
+            console.log("[CodeArena MAIN] No Turnstile found, proceeding.");
+          }
+
+          if (!solved) {
+            if (pollCount % 4 === 1) {
+              console.log("[CodeArena MAIN] Poll #" + pollCount + ": waiting for Turnstile... inputs=" + inputs.length);
+            }
+            return;
+          }
+
+          clearInterval(interval);
+          
+          // Clean URL params
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete("judge_action");
+          newUrl.searchParams.delete("code");
+          newUrl.searchParams.delete("language");
+          window.history.replaceState({}, "", newUrl.toString());
+
+          // Small delay then submit
+          setTimeout(() => {
+            const sBtn = document.querySelector('#submit') 
+              || document.querySelector('button#submit')
+              || document.querySelector('#btn-submit')
+              || document.querySelector('form button[type="submit"]')
+              || document.querySelector('button[type="submit"].btn-primary');
+            
+            if (sBtn) {
+              console.log("[CodeArena MAIN] Clicking submit button:", sBtn.textContent.trim());
+              sBtn.disabled = false;
+              sBtn.click();
+            } else {
+              console.log("[CodeArena MAIN] No submit button found, trying form.submit()");
+              const form = document.querySelector('form');
+              if (form) form.submit();
+            }
+          }, 300);
+        }, 500);
+
+        setTimeout(() => { clearInterval(interval); console.log("[CodeArena MAIN] Timeout."); }, 300000);
+      },
+      args: []
+    });
+    sendResponse({ ok: true });
   }
   return true;
 });

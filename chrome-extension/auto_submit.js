@@ -114,108 +114,16 @@
       console.log("[CodeArena] WARNING: textarea[name=sourceCode] not found!");
     }
 
-    // 5. Wait for Cloudflare Turnstile, then submit
-    console.log("[CodeArena] Starting Turnstile polling...");
-    let pollCount = 0;
-    const pollInterval = setInterval(() => {
-      pollCount++;
-      
-      // Log every 4 ticks (every 2 seconds) to avoid spam
-      const shouldLog = pollCount % 4 === 1;
-      
-      // Find ALL cf-turnstile-response and g-recaptcha-response inputs on the page
-      const allTurnstileInputs = document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
-      const turnstileWidget = document.querySelector('.cf-turnstile');
-      
-      if (shouldLog) {
-        console.log(`[CodeArena] Poll #${pollCount}: Found ${allTurnstileInputs.length} turnstile input(s), widget present: ${!!turnstileWidget}`);
-        allTurnstileInputs.forEach((inp, i) => {
-          console.log(`[CodeArena]   Input ${i}: name="${inp.name}", hasValue=${!!inp.value}, valueLength=${inp.value ? inp.value.length : 0}`);
-        });
-      }
-
-      // Check if ANY turnstile input has a value
-      let solved = false;
-      if (allTurnstileInputs.length === 0 && !turnstileWidget) {
-        // No Turnstile on this page at all - but wait a few seconds to be sure
-        if (pollCount >= 6) {
-          console.log("[CodeArena] No Turnstile found after 3 seconds, proceeding to submit.");
-          solved = true;
-        } else {
-          return; // Keep waiting
-        }
-      } else {
-        // Turnstile exists - check if it's been solved
-        for (const inp of allTurnstileInputs) {
-          if (inp.value && inp.value.trim() !== "") {
-            solved = true;
-            console.log(`[CodeArena] Turnstile SOLVED! Token found in input name="${inp.name}"`);
-            break;
-          }
-        }
-        if (!solved) {
-          return; // Keep waiting for user to solve
-        }
-      }
-
-      // SOLVED or no turnstile - submit!
-      clearInterval(pollInterval);
-      
-      // Small delay to let AtCoder's JS process the token
-      setTimeout(() => {
-        // Find submit button - try multiple selectors
-        const selectors = [
-          '#submit',
-          'button#submit',
-          '#btn-submit',
-          'form button[type="submit"]',
-          'button[type="submit"].btn-primary',
-          'button.btn-primary',
-        ];
-        
-        let sBtn = null;
-        for (const sel of selectors) {
-          sBtn = document.querySelector(sel);
-          if (sBtn) {
-            console.log(`[CodeArena] Submit button found with selector: "${sel}", text: "${sBtn.textContent.trim()}"`);
-            break;
-          }
-        }
-
-        if (!sBtn) {
-          // Last resort: find any button with "Submit" text
-          sBtn = Array.from(document.querySelectorAll('button')).find(b => 
-            b.textContent && b.textContent.trim().toLowerCase() === 'submit'
-          );
-          if (sBtn) {
-            console.log(`[CodeArena] Submit button found by text content: "${sBtn.textContent.trim()}"`);
-          }
-        }
-
-        if (sBtn) {
-          cleanUrl();
-          sBtn.disabled = false;
-          sBtn.removeAttribute('disabled');
-          console.log("[CodeArena] Clicking submit button NOW!");
-          sBtn.click();
-        } else {
-          console.error("[CodeArena] ERROR: Could not find submit button! Trying form.submit() as fallback...");
-          cleanUrl();
-          const form = document.querySelector('form.form-horizontal, form[action*="submit"]');
-          if (form) {
-            form.submit();
-          } else {
-            console.error("[CodeArena] ERROR: Could not find form either!");
-          }
-        }
-      }, 300);
-    }, 500);
-
-    // Stop polling after 5 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval);
-      console.log("[CodeArena] Polling timed out after 5 minutes.");
-    }, 300000);
+    // 5. Delegate Turnstile waiting + submit to MAIN world
+    //    (Content scripts run in an isolated world and CANNOT read Turnstile's token value)
+    console.log("[CodeArena] Delegating Turnstile wait + submit to MAIN world...");
+    try {
+      chrome.runtime.sendMessage({ action: "waitTurnstileAndSubmit" }, () => {
+        console.log("[CodeArena] MAIN world Turnstile handler launched.");
+      });
+    } catch (e) {
+      console.error("[CodeArena] Failed to launch MAIN world handler:", e);
+    }
   }
 
   // CSES
