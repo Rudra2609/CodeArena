@@ -99,50 +99,21 @@
       sourceTextarea.dispatchEvent(new Event('change', {bubbles: true}));
     }
 
-    // 4. Poll for Cloudflare to finish, then submit
-    let attempts = 0;
+    // Wait for Cloudflare Turnstile if present
     const pollInterval = setInterval(() => {
-      attempts++;
-      const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"], script[src*="recaptcha"], .cf-turnstile, .g-recaptcha, iframe[src*="cloudflare"], iframe[src*="recaptcha"]');
-      const turnstileInputs = Array.from(document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]'));
-      const validTurnstile = turnstileInputs.find(t => t && t.value && t.value.trim() !== "");
+      const turnstile = document.querySelector('input[name="cf-turnstile-response"]');
+      const sBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
       
-      if (hasTurnstileScript || turnstileInputs.length > 0 || attempts < 20) {
-        if (hasTurnstileScript || turnstileInputs.length > 0) {
-          if (!validTurnstile) {
-            return; // Wait for Turnstile to inject the input AND for the user to solve it!
-          }
-        } else {
-          return; // Wait up to 10 seconds for the widget to appear in the DOM
-        }
+      if (turnstile && !turnstile.value) {
+        return; // Wait for the Cloudflare widget to show "Success!"
       }
-
-      clearInterval(pollInterval);
       
-      setTimeout(() => {
-        try {
-          let sBtn = document.querySelector('#submit');
-          if (!sBtn) sBtn = document.querySelector('#btn-submit');
-          if (!sBtn) sBtn = document.querySelector('form button[type="submit"].btn-primary');
-          if (!sBtn) sBtn = document.querySelector('button[type="submit"].btn-primary');
-          
-          if (sBtn) {
-            sBtn.disabled = false;
-            sBtn.classList.remove('disabled');
-            sBtn.click();
-          } else {
-            // Fallback to submitting the form directly
-            const form = document.querySelector('form');
-            if (form) form.submit();
-          }
-          cleanUrl();
-        } catch (err) {
-          console.error("CodeArena: Failed to click submit button on AtCoder", err);
-        }
-      }, 500);
+      clearInterval(pollInterval);
+      cleanUrl();
+      if (sBtn) sBtn.click();
     }, 500);
 
-    // Stop polling after 5 minutes
+    // Stop polling after 5 minutes to avoid an infinite loop
     setTimeout(() => clearInterval(pollInterval), 300000);
   }
 
