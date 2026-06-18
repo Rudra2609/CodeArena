@@ -57,65 +57,64 @@
 
   // AtCoder
   else if (hostname.includes("atcoder.jp")) {
-    const langSelect = document.querySelector('select[name="data.LanguageId"]');
-    const sourceTextarea = document.querySelector('textarea[name="sourceCode"]');
-    const submitBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
+    const pollInterval = setInterval(async () => {
+      const submitBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
+      if (!submitBtn) return; // Wait until loaded
 
-    if ((!sourceTextarea && !document.querySelector('.editor')) || !submitBtn) {
-      alert("CodeArena: Could not find submit form on AtCoder!");
-      return;
-    }
-
-    if (langSelect) {
-      const options = Array.from(langSelect.options);
-      let target = null;
-      if (language.startsWith("cpp")) target = options.find(o => o.text.includes("C++"));
-      else if (language === "python") target = options.find(o => o.text.includes("Python3") || o.text.includes("PyPy3"));
-      else if (language === "java") target = options.find(o => o.text.includes("Java"));
-      else if (language === "javascript") target = options.find(o => o.text.includes("Node.js"));
-      
-      if (target) langSelect.value = target.value;
-    }
-
-    let editorToggle = document.querySelector('.btn-toggle-editor');
-    if (!editorToggle) {
-       editorToggle = Array.from(document.querySelectorAll('button')).find(b => 
-         b.textContent && (b.textContent.includes('Toggle Editor') || b.textContent.includes('エディタ'))
-       );
-    }
-    
-    // CodeMirror/Ace intercepts form submissions and overwrites the textarea.
-    // If the plain textarea is hidden, the advanced editor is ON, so we MUST turn it off.
-    if (sourceTextarea && sourceTextarea.offsetHeight === 0 && editorToggle) {
-      editorToggle.click();
-      await new Promise(r => setTimeout(r, 200));
-    }
-    
-    // Also inject via background just in case
-    await injectCodeIntoPage(code);
-      
-    const txt = document.querySelector('textarea[name="sourceCode"]');
-    if (txt) {
-      txt.value = code;
-      txt.dispatchEvent(new Event('input', {bubbles: true}));
-      txt.dispatchEvent(new Event('change', {bubbles: true}));
-    }
-
-    // Wait for Cloudflare Turnstile if present
-    const pollInterval = setInterval(() => {
       const turnstile = document.querySelector('input[name="cf-turnstile-response"]');
-      const sBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
-      
       if (turnstile && !turnstile.value) {
         return; // Wait for the Cloudflare widget to show "Success!"
       }
-      
+
       clearInterval(pollInterval);
+
+      const langSelect = document.querySelector('select[name="data.LanguageId"]');
+      if (langSelect) {
+        const options = Array.from(langSelect.options);
+        let target = null;
+        if (language.startsWith("cpp")) target = options.find(o => o.text.includes("C++"));
+        else if (language === "python") target = options.find(o => o.text.includes("Python3") || o.text.includes("PyPy3"));
+        else if (language === "java") target = options.find(o => o.text.includes("Java"));
+        else if (language === "javascript") target = options.find(o => o.text.includes("Node.js"));
+        
+        if (target) {
+          langSelect.value = target.value;
+          langSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+
+      const sourceTextarea = document.querySelector('textarea[name="sourceCode"]');
+      let editorToggle = document.querySelector('.btn-toggle-editor, a.btn-toggle-editor');
+      if (!editorToggle) {
+         editorToggle = Array.from(document.querySelectorAll('button, a')).find(b => 
+           b.textContent && (b.textContent.includes('Toggle Editor') || b.textContent.includes('エディタ'))
+         );
+      }
+      
+      if (sourceTextarea && sourceTextarea.offsetHeight === 0 && editorToggle) {
+        editorToggle.click();
+        await new Promise(r => setTimeout(r, 200));
+      }
+      
+      await injectCodeIntoPage(code);
+        
+      if (sourceTextarea) {
+        sourceTextarea.value = code;
+        sourceTextarea.dispatchEvent(new Event('input', {bubbles: true}));
+        sourceTextarea.dispatchEvent(new Event('change', {bubbles: true}));
+      }
+
+      await new Promise(r => setTimeout(r, 300));
       cleanUrl();
-      if (sBtn) sBtn.click();
+      
+      try {
+        const sBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
+        if (sBtn) sBtn.click();
+      } catch (err) {
+        console.error("CodeArena: Failed to click submit button on AtCoder", err);
+      }
     }, 500);
 
-    // Stop polling after 15 seconds to avoid an infinite loop
     setTimeout(() => clearInterval(pollInterval), 15000);
   }
 
