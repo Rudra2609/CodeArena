@@ -105,11 +105,12 @@
     const pollInterval = setInterval(() => {
       attempts++;
       const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"], script[src*="recaptcha"], .cf-turnstile, .g-recaptcha, iframe[src*="cloudflare"], iframe[src*="recaptcha"]');
-      const turnstile = document.querySelector('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
+      const turnstileInputs = Array.from(document.querySelectorAll('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]'));
+      const validTurnstile = turnstileInputs.find(t => t && t.value && t.value.trim() !== "");
       
-      if (hasTurnstileScript || turnstile || attempts < 6) {
-        if (hasTurnstileScript || turnstile) {
-          if (!turnstile || !turnstile.value) {
+      if (hasTurnstileScript || turnstileInputs.length > 0 || attempts < 6) {
+        if (hasTurnstileScript || turnstileInputs.length > 0) {
+          if (!validTurnstile) {
             return; // Wait for Turnstile to inject the input AND for the user to solve it!
           }
         } else {
@@ -121,10 +122,19 @@
       cleanUrl();
       
       try {
-        const sBtn = document.querySelector('#submit, #btn-submit, button[type="submit"].btn-primary, button.btn-primary');
+        let sBtn = document.querySelector('#submit');
+        if (!sBtn) sBtn = document.querySelector('#btn-submit');
+        if (!sBtn) sBtn = document.querySelector('form button[type="submit"].btn-primary');
+        if (!sBtn) sBtn = document.querySelector('button[type="submit"].btn-primary');
+        
         if (sBtn) {
           sBtn.disabled = false;
+          sBtn.classList.remove('disabled');
           sBtn.click();
+        } else {
+          // Fallback to submitting the form directly
+          const form = document.querySelector('form');
+          if (form) form.submit();
         }
       } catch (err) {
         console.error("CodeArena: Failed to click submit button on AtCoder", err);
