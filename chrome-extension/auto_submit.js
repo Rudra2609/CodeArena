@@ -102,8 +102,8 @@
 
     // 4. Poll for Cloudflare to finish, then submit
     const pollInterval = setInterval(() => {
-      const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"]');
-      const turnstile = document.querySelector('input[name="cf-turnstile-response"]');
+      const hasTurnstileScript = !!document.querySelector('script[src*="turnstile"], .cf-turnstile, iframe[src*="cloudflare"]');
+      const turnstile = document.querySelector('input[name="cf-turnstile-response"], input[name="g-recaptcha-response"]');
       
       if (hasTurnstileScript) {
         if (!turnstile || !turnstile.value) {
