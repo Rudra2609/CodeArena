@@ -3,12 +3,23 @@ models.py — SQLAlchemy ORM models
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, Text, Float, DateTime, ForeignKey
+from sqlalchemy import Column, String, Text, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id              = Column(String, primary_key=True)
+    username        = Column(String, unique=True, index=True, nullable=False)
+    email           = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    is_verified     = Column(Boolean, default=False)
+    created_at      = Column(DateTime, default=datetime.utcnow)
 
 
 class Problem(Base):
@@ -37,3 +48,15 @@ class Submission(Base):
     time_ms         = Column(Float, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
     completed_at    = Column(DateTime, nullable=True)
+
+
+class CodeFile(Base):
+    __tablename__ = "code_files"
+
+    id              = Column(String, primary_key=True)
+    user_id         = Column(String, ForeignKey("users.id"), nullable=False)
+    title           = Column(String, nullable=False)
+    language        = Column(String, nullable=False)
+    source_code     = Column(Text, nullable=False)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

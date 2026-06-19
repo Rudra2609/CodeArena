@@ -44,3 +44,55 @@ class SubmissionResponse(BaseModel):
     completed_at:    Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+# ── Auth ───────────────────────────────────────────────────────
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    username: str
+    email: str
+    is_verified: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class VerifyOTP(BaseModel):
+    email: str
+    otp: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+# ── CodeFile ───────────────────────────────────────────────────
+
+class CodeFileCreate(BaseModel):
+    title: str
+    language: str
+    source_code: str
+
+class CodeFileUpdate(BaseModel):
+    title: Optional[str] = None
+    language: Optional[str] = None
+    source_code: Optional[str] = None
+
+class CodeFileResponse(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    language: str
+    source_code: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

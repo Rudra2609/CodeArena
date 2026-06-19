@@ -24,6 +24,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       params.append("stdin", btoa(unescape(encodeURIComponent(stdin))));
       params.append("expected", btoa(unescape(encodeURIComponent(expected))));
     }
+    
+    // Add cache-busting timestamp so Chrome never uses an old cached version
+    params.append("_t", Date.now().toString());
 
     chrome.tabs.create({ url: `${JUDGE_BASE_URL}/?${params.toString()}` });
     sendResponse({ ok: true });
@@ -65,6 +68,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
              if (aceEl && window.ace) {
                 window.ace.edit(aceEl).setValue(injectedCode);
              }
+             
+             // Fallback: Simulate pasting into the active Monaco textarea
+             const activeTextarea = document.querySelector('.monaco-editor textarea, .inputarea, textarea.monaco-mouse-cursor-text');
+             if (activeTextarea) {
+               activeTextarea.focus();
+               activeTextarea.select();
+               document.execCommand('insertText', false, injectedCode);
+             }
           }
         } catch(e) {}
         
@@ -95,9 +106,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("[CodeArena MAIN] Starting non-invasive Turnstile polling...");
         
         let submitted = false;
+        
+        // Add visual indicator for the user
+        let overlay = null;
+        function showOverlay() {
+          if (overlay || submitted) return;
+          overlay = document.createElement('div');
+          overlay.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#ff9800; color:#fff; padding:15px 30px; border-radius:8px; z-index:999999; font-size:18px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.3); text-align:center; pointer-events:none; animation: pulse 2s infinite;";
+          overlay.innerHTML = "🤖 CodeArena Auto-Submit<br/><span style='font-size:14px; font-weight:normal;'>Please click the 'Verify you are human' checkbox below to complete submission!</span>";
+          
+          const style = document.createElement('style');
+          style.innerHTML = "@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,152,0, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,152,0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255,152,0, 0); } }";
+          document.head.appendChild(style);
+          
+          document.body.appendChild(overlay);
+        }
+
         function doSubmit() {
           if (submitted) return;
           submitted = true;
+          if (overlay) overlay.remove();
+          
           console.log("[CodeArena MAIN] TURNSTILE SOLVED! Submitting...");
           
           setTimeout(() => {
@@ -170,12 +199,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return;
           }
           
+          if (inputs.length > 0 || window.turnstile) {
+            showOverlay(); // Show the prompt if Turnstile is detected
+          }
+          
           if (pollCount % 8 === 1) {
             console.log("[CodeArena MAIN] Poll #" + pollCount + ": waiting... inputs=" + inputs.length + " hasTurnstile=" + !!window.turnstile);
           }
         }, 500);
 
-        setTimeout(() => { clearInterval(interval); console.log("[CodeArena MAIN] Timeout."); }, 300000);
+        setTimeout(() => { clearInterval(interval); console.log("[CodeArena MAIN] Timeout."); if(overlay) overlay.remove(); }, 300000);
       },
       args: []
     });

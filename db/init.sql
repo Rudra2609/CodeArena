@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS problems (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id              TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    username        TEXT UNIQUE NOT NULL,
+    email           TEXT UNIQUE NOT NULL,
+    hashed_password TEXT NOT NULL,
+    is_verified     BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
 CREATE TABLE IF NOT EXISTS submissions (
     id              TEXT PRIMARY KEY,
     problem_id      TEXT REFERENCES problems(id) ON DELETE SET NULL,

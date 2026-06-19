@@ -59,10 +59,12 @@
     const sourceTextarea = document.querySelector('textarea#sourceCodeTextarea');
     const fileInput = document.querySelector('input[name="sourceFile"]');
     const editorToggle = document.getElementById('toggleEditorCheckbox');
-    const submitBtn = document.querySelector('input.submit[type="submit"], button.submit, input.submit');
+    
+    const form = langSelect ? langSelect.closest('form') : null;
+    const submitBtn = form ? form.querySelector('input[type="submit"], button[type="submit"], input.submit, button.submit') : null;
 
-    if (!langSelect || (!sourceTextarea && !fileInput) || !submitBtn) {
-      alert("CodeArena: Could not find submit form on Codeforces!");
+    if (!form || !langSelect || (!sourceTextarea && !fileInput) || !submitBtn) {
+      alert("CodeArena: Could not find submit form on Codeforces!\n\nAre you logged in to Codeforces? Is the problem submittable?");
       return;
     }
 
@@ -180,40 +182,44 @@
 
   // CodeChef
   else if (hostname.includes("codechef.com")) {
-    const pollInterval = setInterval(async () => {
-      const submitBtn = document.querySelector('[id*="submit"], [class*="submit"], button');
-      // Look specifically for their standard button, carefully checking textContent to avoid null errors
-      const realBtn = Array.from(document.querySelectorAll("button")).find(b => {
-        const text = b.textContent || "";
-        return text.toLowerCase().includes("submit");
-      });
-      
-      if (!realBtn && !submitBtn) return; // Wait until loaded
+      const pollInterval = setInterval(async () => {
+        // Look specifically for their standard button, carefully checking textContent to avoid null errors
+        const realBtn = Array.from(document.querySelectorAll("button")).find(b => {
+          const text = b.textContent || "";
+          return text.toLowerCase().trim() === "submit" || text.toLowerCase().trim() === "submit code";
+        });
+        
+        if (!realBtn) return; // Wait until loaded
 
-      clearInterval(pollInterval);
-      
-      await injectCodeIntoPage(code);
-      
-      await new Promise(r => setTimeout(r, 500));
+        clearInterval(pollInterval);
+        
+        // Try to set language if possible
+        const langDiv = Array.from(document.querySelectorAll('div, button')).find(el => el.textContent && el.textContent.includes('C++17') && el.className.includes('lang'));
+        // CodeChef language selector is a custom React dropdown, difficult to auto-select accurately without exact class names.
+        // We will focus on injecting the code accurately.
+        
+        await injectCodeIntoPage(code);
+        
+        await new Promise(r => setTimeout(r, 1000));
 
-      
-      // Re-query the button right before clicking, because Codechef's React SPA 
-      // might have re-rendered the DOM and detached our old button reference.
-      const freshRealBtn = Array.from(document.querySelectorAll("button")).find(b => {
-        const text = b.textContent || "";
-        return text.toLowerCase().includes("submit");
-      });
-      const freshSubmitBtn = document.querySelector('[id*="submit"], [class*="submit"], button');
+        // Re-query the button right before clicking, because Codechef's React SPA 
+        // might have re-rendered the DOM and detached our old button reference.
+        const freshRealBtn = Array.from(document.querySelectorAll("button")).find(b => {
+          const text = b.textContent || "";
+          return text.toLowerCase().trim() === "submit" || text.toLowerCase().trim() === "submit code";
+        });
 
-      try {
-        if (freshRealBtn) freshRealBtn.click();
-        else if (freshSubmitBtn) freshSubmitBtn.click();
-      } catch (err) {
-        console.error("CodeArena: Failed to click submit button", err);
-      }
-    }, 500);
-    
-    setTimeout(() => clearInterval(pollInterval), 10000);
+        try {
+          if (freshRealBtn) {
+            console.log("CodeArena: Clicking CodeChef submit button.");
+            freshRealBtn.click();
+          }
+        } catch (err) {
+          console.error("CodeArena: Failed to click submit button", err);
+        }
+      }, 1000);
+      
+      setTimeout(() => clearInterval(pollInterval), 15000);
   }
 
 })();

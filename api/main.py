@@ -20,8 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from database import get_db, engine
-from models import Base, Submission, Problem
-from schemas import SubmissionCreate, SubmissionResponse, ProblemResponse
+from models import Base, Submission, Problem, CodeFile, User
+from schemas import SubmissionCreate, SubmissionResponse, ProblemResponse, CodeFileCreate, CodeFileUpdate, CodeFileResponse
+from auth import get_current_user
 from celery_client import enqueue_submission
 
 
@@ -49,6 +50,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+from auth import router as auth_router
+
+app.include_router(auth_router)
 
 # ── Submissions ────────────────────────────────────────────────
 
@@ -152,3 +157,90 @@ async def get_problem(
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Code Files ─────────────────────────────────────────────────
+
+@app.get("/api/files", response_model=List[CodeFileResponse])
+async def list_files(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CodeFile).where(CodeFile.user_id == current_user.id).order_by(CodeFile.updated_at.desc())
+    )
+    return result.scalars().all()
+
+@app.post("/api/files", response_model=CodeFileResponse, status_code=201)
+async def create_file(
+    body: CodeFileCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    new_file = CodeFile(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        title=body.title,
+        language=body.language,
+        source_code=body.source_code,
+    )
+    db.add(new_file)
+    await db.commit()
+    await db.refresh(new_file)
+    return new_file
+
+@app.get("/api/files/{file_id}", response_model=CodeFileResponse)
+async def get_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CodeFile).where(CodeFile.id == file_id, CodeFile.user_id == current_user.id)
+    )
+    code_file = result.scalar_one_or_none()
+    if not code_file:
+        raise HTTPException(status_code=404, detail="File not found")
+    return code_file
+
+@app.put("/api/files/{file_id}", response_model=CodeFileResponse)
+async def update_file(
+    file_id: str,
+    body: CodeFileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CodeFile).where(CodeFile.id == file_id, CodeFile.user_id == current_user.id)
+    )
+    code_file = result.scalar_one_or_none()
+    if not code_file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if body.title is not None:
+        code_file.title = body.title
+    if body.language is not None:
+        code_file.language = body.language
+    if body.source_code is not None:
+        code_file.source_code = body.source_code
+
+    await db.commit()
+    await db.refresh(code_file)
+    return code_file
+
+@app.delete("/api/files/{file_id}", status_code=204)
+async def delete_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CodeFile).where(CodeFile.id == file_id, CodeFile.user_id == current_user.id)
+    )
+    code_file = result.scalar_one_or_none()
+    if not code_file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    await db.delete(code_file)
+    await db.commit()
+    return None

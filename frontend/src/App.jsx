@@ -14,6 +14,13 @@ import Editor from "@monaco-editor/react";
 import Split from "react-split";
 import VerdictBadge from "./components/VerdictBadge";
 import { submitCode, pollSubmission, fetchProblems } from "./api/judgeApi";
+import { useAuth } from "./context/AuthContext";
+import { useTheme } from "./context/ThemeContext";
+import AuthModals from "./components/AuthModals";
+import Sidebar from "./components/Sidebar";
+import SettingsModal from "./components/SettingsModal";
+import FilesModal from "./components/FilesModal";
+import { saveCodeFile, updateCodeFile } from "./api/judgeApi";
 
 // ── URL param helpers ─────────────────────────────────────────
 function decodeParam(val) {
@@ -120,9 +127,108 @@ const FILE_EXT = {
 export default function App() {
   const extParams = useRef(readExtensionParams()).current;
 
-  const [language, setLanguage]       = useState(extParams?.lang || "python");
-  const [code, setCode]               = useState(STARTERS[extParams?.lang || "python"]);
-  const [cases, setCases]             = useState(extParams?.cases || [{stdin: "", expected: ""}]);
+  // Auth & Theme state
+  const { user, logout } = useAuth();
+  const { theme } = useTheme();
+  const [authModal, setAuthModal] = useState(null); // 'login' | 'register' | 'verify' | null
+  const [showSettings, setShowSettings] = useState(false);
+  const [showFilesModal, setShowFilesModal] = useState(false);
+
+  const createTab = (id, title, lang, c, cs, fileId, problemTitle, problemSource) => ({
+    id, title, language: lang, code: c, cases: cs, fileId, problemTitle, problemSource
+  });
+
+  const [tabs, setTabs] = useState(() => {
+    let savedTabs = [];
+    try {
+      const stored = localStorage.getItem("codearena_tabs");
+      if (stored) savedTabs = JSON.parse(stored);
+    } catch(e) {}
+
+    if (extParams) {
+      // Check if problem already exists
+      const existingTab = savedTabs.find(t => t.problemSource === extParams.source && extParams.source);
+      if (existingTab) {
+        // If it exists, don't create a new tab. We will just activate it below.
+        return savedTabs;
+      }
+
+      const initLang = extParams.lang || "python";
+      const initCode = STARTERS[initLang];
+      const initCases = extParams.cases || [{stdin: "", expected: ""}];
+      const title = extParams.problem || "Solution";
+      const extTab = createTab("tab-" + Date.now(), title, initLang, initCode, initCases, null, extParams.problem, extParams.source);
+      
+      if (savedTabs.length > 0) {
+        return [...savedTabs, extTab];
+      }
+      return [extTab];
+    }
+
+    if (savedTabs.length > 0) return savedTabs;
+
+    return [createTab("tab-" + Date.now(), "Solution", "python", STARTERS["python"], [{stdin: "", expected: ""}], null, null, null)];
+  });
+
+  const [activeTabId, setActiveTabId] = useState(() => {
+    if (extParams) {
+      // Check if problem already existed and was kept
+      const existingTab = tabs.find(t => t.problemSource === extParams.source && extParams.source);
+      if (existingTab) {
+        return existingTab.id;
+      }
+      return tabs[tabs.length - 1].id;
+    }
+    const savedActive = localStorage.getItem("codearena_active_tab");
+    if (savedActive && tabs.find(t => t.id === savedActive)) return savedActive;
+    return tabs[0].id;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("codearena_tabs", JSON.stringify(tabs));
+    localStorage.setItem("codearena_active_tab", activeTabId);
+  }, [tabs, activeTabId]);
+
+  // Derived state from active tab
+  const activeEditorTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+  const code = activeEditorTab.code;
+  const language = activeEditorTab.language;
+  const cases = activeEditorTab.cases;
+  const currentFile = activeEditorTab.fileId ? { id: activeEditorTab.fileId, title: activeEditorTab.title } : null;
+  const problemTitle = activeEditorTab.problemTitle;
+  const problemSource = activeEditorTab.problemSource;
+
+  // Handlers to update active tab
+  const updateActiveTab = (updates) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
+  };
+  const setCode = (newCode) => updateActiveTab({ code: typeof newCode === 'function' ? newCode(code) : newCode });
+  const setLanguage = (newLang) => updateActiveTab({ language: typeof newLang === 'function' ? newLang(language) : newLang });
+  const setCases = (newCases) => updateActiveTab({ cases: typeof newCases === 'function' ? newCases(cases) : newCases });
+  const setCurrentFile = (fileObj) => {
+    if (fileObj) {
+      updateActiveTab({ fileId: fileObj.id, title: fileObj.title });
+    } else {
+      updateActiveTab({ fileId: null, title: "Solution" });
+    }
+  };
+  const handleCloseTab = (e, tabId) => {
+    e.stopPropagation();
+    setTabs(prev => {
+      const newTabs = prev.filter(t => t.id !== tabId);
+      if (newTabs.length === 0) {
+        const newPad = createTab("tab-" + Date.now(), "Solution", "python", STARTERS["python"], [{stdin: "", expected: ""}], null, null, null);
+        setActiveTabId(newPad.id);
+        return [newPad];
+      }
+      if (activeTabId === tabId) {
+        const idx = prev.findIndex(t => t.id === tabId);
+        setActiveTabId(newTabs[Math.max(0, idx - 1)].id);
+      }
+      return newTabs;
+    });
+  };
+
   const [problems, setProblems]       = useState([]);
   const [selectedProblem, setProblem] = useState(null);
   const [submissions, setSubmissions] = useState([]);
@@ -237,10 +343,25 @@ export default function App() {
     ));
   }
 
+  const handleEditorWillMount = (monaco) => {
+    monaco.editor.defineTheme('dracula', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: { 'editor.background': '#282a36' }
+    });
+    monaco.editor.defineTheme('github-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: { 'editor.background': '#0d1117' }
+    });
+  };
+
   // Download code as file
   function handleDownload() {
     const ext = FILE_EXT[language] || "txt";
-    let name = extParams?.problem || selectedProblem?.id || "solution";
+    let name = problemTitle || selectedProblem?.id || "solution";
     name = name.replace(/[^a-z0-9_-]/gi, '_'); // Sanitize filename
     
     const blob = new Blob([code], { type: "text/plain" });
@@ -251,40 +372,77 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
+  // Save code as file in backend
+  async function handleSaveFile() {
+    if (!user) {
+      alert("Please log in to save files.");
+      return;
+    }
+    try {
+      if (currentFile) {
+        // Update existing file
+        const res = await updateCodeFile(currentFile.id, {
+          source_code: code,
+          language: language
+        });
+        setCurrentFile(res);
+        alert("File updated successfully!");
+      } else {
+        // Create new file
+        let title = window.prompt("Enter a name for this file:", problemTitle || selectedProblem?.id || "solution");
+        if (!title) return; // user cancelled
+        
+        const res = await saveCodeFile({
+          title,
+          language,
+          source_code: code
+        });
+        setCurrentFile(res);
+        alert("File saved successfully!");
+      }
+    } catch (err) {
+      alert("Failed to save file: " + err.message);
+    }
+  }
+
 
   // ── Render ──────────────────────────────────────────────────
   return (
-    <div className="app">
-      {/* ── Extension banner ──────────────────────────── */}
-      {extParams && (
-        <div className="ext-banner">
-          <span className="ext-badge">⚡ CodeArena</span>
-          {extParams.problem && (
-            <span className="ext-problem">{extParams.problem}</span>
-          )}
-          {extParams.source && (
+    <div className="app-container">
+      <Sidebar onSettingsClick={() => setShowSettings(true)} onFilesClick={() => setShowFilesModal(true)} />
+      
+      <div className="app">
+        {/* ── Extension banner ──────────────────────────── */}
+        {problemTitle && problemSource && (
+          <div className="ext-banner">
+            <span className="ext-badge">⚡ CodeArena</span>
+            <span className="ext-problem">{problemTitle}</span>
             <a
-              href={extParams.source}
+              href={problemSource}
               target="_blank"
               rel="noreferrer"
               className="ext-link"
             >
               View problem →
             </a>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* ── Top bar ───────────────────────────────────── */}
-      <header className="topbar">
-        <div className="topbar-left">
-          <h1 className="brand">⚔️ CodeArena</h1>
+        {/* ── Top bar ───────────────────────────────────── */}
+        <header className="topbar">
+          <div className="topbar-left">
+            <h1 className="brand">⚔️ CodeArena</h1>
+          </div>
 
-          {/* Problem picker removed as requested */}
-        </div>
+          <div className="topbar-right">
+            {!user && (
+              <div className="auth-buttons" style={{ marginRight: '15px' }}>
+                <button onClick={() => setAuthModal('login')} className="btn outline-btn" style={{ marginRight: '10px' }}>Log In</button>
+                <button onClick={() => setAuthModal('register')} className="btn primary-btn">Sign Up</button>
+              </div>
+            )}
 
-        <div className="topbar-right">
-          {/* Language selector */}
+            {/* Language selector */}
           <select
             className="lang-select"
             value={language}
@@ -296,6 +454,15 @@ export default function App() {
             <option value="java">Java 21</option>
             <option value="javascript">Node.js 20</option>
           </select>
+
+          <button
+            className="btn-run"
+            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text)", border: "1px solid var(--glass-border)", marginRight: "10px", boxShadow: "none" }}
+            onClick={handleSaveFile}
+            title="Save code to your account"
+          >
+            💾 Save
+          </button>
 
           <button
             className="btn-run"
@@ -314,11 +481,11 @@ export default function App() {
                 action: "submitToPlatform",
                 language,
                 code,
-                problemUrl: extParams?.source
+                problemUrl: problemSource
               }, "*");
             }}
             title="Submit directly to platform"
-            disabled={!extParams?.source}
+            disabled={!problemSource}
           >
             🚀 Submit
           </button>
@@ -334,8 +501,21 @@ export default function App() {
       </header>
 
       {/* ── Main layout ───────────────────────────────── */}
+      {!user && (
+        <div className="login-overlay">
+          <div className="login-overlay-content">
+            <h2>Welcome to CodeArena</h2>
+            <p style={{ color: "var(--text-muted)", marginBottom: "20px" }}>Please log in to start coding and testing your solutions.</p>
+            <div className="auth-buttons" style={{ display: "flex", gap: "15px", justifyContent: "center" }}>
+              <button onClick={() => setAuthModal('login')} className="btn outline-btn">Log In</button>
+              <button onClick={() => setAuthModal('register')} className="btn primary-btn">Sign Up</button>
+            </div>
+          </div>
+        </div>
+      )}
       <Split 
         className="workspace split"
+        style={{ pointerEvents: !user ? "none" : "auto" }}
         sizes={[65, 35]}
         minSize={isMobile ? 250 : 350}
         direction={isMobile ? 'vertical' : 'horizontal'}
@@ -343,12 +523,37 @@ export default function App() {
       >
         {/* Left: Monaco editor */}
         <section className="editor-pane">
+          <div className="editor-tabs-bar">
+            {tabs.map(tab => (
+              <div 
+                key={tab.id} 
+                className={`editor-tab ${activeTabId === tab.id ? "active" : ""}`}
+                onClick={() => setActiveTabId(tab.id)}
+              >
+                <span className={`tab-icon lang-${tab.language}`}>
+                  {tab.language === "javascript" ? "JS" :
+                   tab.language === "python" ? "PY" :
+                   tab.language.startsWith("cpp") ? "C++" :
+                   tab.language === "java" ? "☕" : "📄"}
+                </span>
+                <span className="tab-title">{tab.title}</span>
+                <button 
+                  className="tab-close" 
+                  onClick={(e) => handleCloseTab(e, tab.id)}
+                  title="Close tab"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
           <Editor
             height="100%"
             language={MONACO_LANG[language]}
             value={code}
             onChange={(v) => setCode(v || "")}
-            theme="vs-dark"
+            theme={theme === 'dark' ? 'vs-dark' : theme}
+            beforeMount={handleEditorWillMount}
             options={{
               fontSize:          14,
               fontFamily:        "'JetBrains Mono', 'Fira Code', monospace",
@@ -386,7 +591,7 @@ export default function App() {
               {cases.map((c, i) => (
                 <div key={i} className="testcase-card">
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", alignItems: "center" }}>
-                    <strong style={{ color: "#fff" }}>Case {i + 1}</strong>
+                    <strong>Case {i + 1}</strong>
                     <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                       <button 
                         className="btn-run-sm" 
@@ -491,6 +696,38 @@ export default function App() {
           )}
         </aside>
       </Split>
+
+      {/* ── Modals ────────────────────────────────────── */}
+      {authModal && (
+        <AuthModals 
+          mode={authModal} 
+          onClose={() => setAuthModal(null)} 
+          onSwitchMode={setAuthModal} 
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+
+      {showFilesModal && (
+        <FilesModal 
+          onClose={() => setShowFilesModal(false)}
+          onLoadFile={(file) => {
+            // Check if already open
+            const existingTab = tabs.find(t => t.fileId === file.id);
+            if (existingTab) {
+              setActiveTabId(existingTab.id);
+            } else {
+              const newTab = createTab("tab-" + Date.now(), file.title, file.language, file.source_code, [{stdin: "", expected: ""}], file.id, null, null);
+              setTabs(prev => [...prev, newTab]);
+              setActiveTabId(newTab.id);
+            }
+            setShowFilesModal(false);
+          }}
+        />
+      )}
+      </div>
     </div>
   );
 }
