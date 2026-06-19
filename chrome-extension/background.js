@@ -129,10 +129,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           try {
             if (window.turnstile) {
               let resp = window.turnstile.getResponse();
-              if (!resp) {
-                const container = document.querySelector('[data-sitekey]');
-                if (container) resp = window.turnstile.getResponse(container);
-              }
               if (resp) {
                 console.log("[CodeArena MAIN] Token from API, length: " + resp.length);
                 doSubmit();
