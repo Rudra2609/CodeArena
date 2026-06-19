@@ -68,7 +68,7 @@
       return;
     }
 
-    const cfLangMap = { "cpp23": "89", "cpp": "54", "python": "31", "java": "87", "javascript": "86" };
+    const cfLangMap = { "cpp23": "89", "cpp": "54", "python": "31", "java": "87", "javascript": "86", "c": "43" };
     let targetVal = cfLangMap[language];
     if (targetVal) langSelect.value = targetVal;
     if (editorToggle && editorToggle.checked) editorToggle.click();
@@ -77,7 +77,7 @@
     if (sourceTextarea) {
       sourceTextarea.value = code;
     } else if (fileInput) {
-      const ext = language.startsWith("cpp") ? "cpp" : language === "python" ? "py" : language === "java" ? "java" : "js";
+      const ext = language.startsWith("cpp") ? "cpp" : language === "python" ? "py" : language === "java" ? "java" : language === "c" ? "c" : "js";
       const file = new File([code], "solution." + ext, { type: "text/plain" });
       const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
     }
@@ -95,6 +95,7 @@
       const options = Array.from(langSelect.options);
       let target = null;
       if (language.startsWith("cpp")) target = options.find(o => o.text.includes("C++"));
+      else if (language === "c") target = options.find(o => o.text.startsWith("C ("));
       else if (language === "python") target = options.find(o => o.text.includes("Python3") || o.text.includes("PyPy3"));
       else if (language === "java") target = options.find(o => o.text.includes("Java"));
       else if (language === "javascript") target = options.find(o => o.text.includes("Node.js"));
@@ -167,12 +168,13 @@
       const options = Array.from(langSelect.options);
       let target = null;
       if (language.startsWith("cpp")) target = options.find(o => o.text.includes("C++"));
+      else if (language === "c") target = options.find(o => o.text === "C");
       else if (language === "python") target = options.find(o => o.text.includes("Python"));
       else if (language === "java") target = options.find(o => o.text.includes("Java"));
       if (target) langSelect.value = target.value;
     }
 
-    const ext = language.startsWith("cpp") ? "cpp" : language === "python" ? "py" : language === "java" ? "java" : "js";
+    const ext = language.startsWith("cpp") ? "cpp" : language === "python" ? "py" : language === "java" ? "java" : language === "c" ? "c" : "js";
     const file = new File([code], "solution." + ext, { type: "text/plain" });
     const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
     

@@ -983,6 +983,7 @@ body {
 .tab-icon.lang-python { color: #3572A5; }
 .tab-icon.lang-cpp { color: #f34b7d; }
 .tab-icon.lang-cpp23 { color: #f34b7d; }
+.tab-icon.lang-c { color: #555555; }
 .tab-icon.lang-java { color: #b07219; }
 
 .tab-title {

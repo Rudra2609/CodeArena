@@ -58,6 +58,12 @@ LANGUAGE_CONFIG: dict[str, dict] = {
         "compile_cmd": "g++ -O2 -std=c++23 -o /code/solution /code/solution.cpp",
         "run_cmd":     "cp /code/solution /tmp/solution && exec /tmp/solution",
     },
+    "c": {
+        "image":       "gcc:14",
+        "filename":    "solution.c",
+        "compile_cmd": "gcc -O2 -std=c11 -o /code/solution /code/solution.c",
+        "run_cmd":     "cp /code/solution /tmp/solution && exec /tmp/solution",
+    },
     "java": {
         # eclipse-temurin:21-jdk-alpine = OpenJDK 21 JDK on Alpine (includes javac)
         # Use JDK not JRE — JRE has no javac compiler

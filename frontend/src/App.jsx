@@ -105,6 +105,14 @@ public class Main {
 // Write your solution here
 console.log("Hello, Judge!");
 `,
+  c: `#include <stdio.h>
+
+int main() {
+    // Write your solution here
+    printf("Hello, Judge!\\n");
+    return 0;
+}
+`,
 };
 
 const MONACO_LANG = {
@@ -113,6 +121,7 @@ const MONACO_LANG = {
   cpp23:      "cpp",
   java:       "java",
   javascript: "javascript",
+  c:          "c",
 };
 
 const FILE_EXT = {
@@ -121,6 +130,7 @@ const FILE_EXT = {
   cpp23:      "cpp",
   java:       "java",
   javascript: "js",
+  c:          "c",
 };
 
 // ── Component ──────────────────────────────────────────────────
@@ -449,15 +459,16 @@ export default function App() {
             onChange={(e) => handleLangChange(e.target.value)}
           >
             <option value="python">Python 3</option>
-            <option value="cpp">C++ 17</option>
             <option value="cpp23">C++ 23</option>
-            <option value="java">Java 21</option>
-            <option value="javascript">Node.js 20</option>
+            <option value="cpp">C++ 17</option>
+            <option value="c">C</option>
+            <option value="java">Java</option>
+            <option value="javascript">Node.js</option>
           </select>
 
           <button
             className="btn-run"
-            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text)", border: "1px solid var(--glass-border)", marginRight: "10px", boxShadow: "none" }}
+            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text)", border: "1px solid var(--glass-border)", marginRight: "4px", boxShadow: "none" }}
             onClick={handleSaveFile}
             title="Save code to your account"
           >
@@ -466,7 +477,7 @@ export default function App() {
 
           <button
             className="btn-run"
-            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text)", border: "1px solid var(--glass-border)", marginRight: "10px", boxShadow: "none" }}
+            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text)", border: "1px solid var(--glass-border)", marginRight: "4px", boxShadow: "none" }}
             onClick={handleDownload}
             title="Download code file"
           >
@@ -475,7 +486,7 @@ export default function App() {
 
           <button
             className="btn-run"
-            style={{ background: "#10a37f", marginRight: "10px" }}
+            style={{ background: "#10a37f", marginRight: "4px" }}
             onClick={() => {
               window.postMessage({
                 action: "submitToPlatform",
@@ -534,6 +545,7 @@ export default function App() {
                   {tab.language === "javascript" ? "JS" :
                    tab.language === "python" ? "PY" :
                    tab.language.startsWith("cpp") ? "C++" :
+                   tab.language === "c" ? "C" :
                    tab.language === "java" ? "☕" : "📄"}
                 </span>
                 <span className="tab-title">{tab.title}</span>
