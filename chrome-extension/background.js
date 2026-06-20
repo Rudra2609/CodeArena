@@ -28,7 +28,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Add cache-busting timestamp so Chrome never uses an old cached version
     params.append("_t", Date.now().toString());
 
-    chrome.tabs.create({ url: `${JUDGE_BASE_URL}/?${params.toString()}` });
+    const targetUrl = `${JUDGE_BASE_URL}/?${params.toString()}`;
+
+    chrome.tabs.query({}, (tabs) => {
+      // Chrome's tabs.query doesn't support port numbers in match patterns, so we filter manually
+      const arenaTab = tabs.find(t => t.url && t.url.includes("localhost:8080"));
+      
+      if (arenaTab) {
+        // Reuse the first found tab
+        chrome.tabs.update(arenaTab.id, { url: targetUrl, active: true });
+        chrome.windows.update(arenaTab.windowId, { focused: true });
+      } else {
+        chrome.tabs.create({ url: targetUrl });
+      }
+    });
+    
     sendResponse({ ok: true });
   } else if (request.action === "submitToPlatform") {
     const { code, language, problemUrl } = request;
