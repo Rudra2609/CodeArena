@@ -4,7 +4,7 @@
 
 **A production-grade online judge and personal code execution sandbox — built entirely with Docker.**
 
-Every submission runs inside a freshly-spawned, isolated container with hard CPU/RAM/PID limits, mirroring the architecture of Codeforces, LeetCode, and AtCoder. Paired with a powerful Chrome Extension that scrapes test cases from the world's top competitive programming platforms and beams them directly into your local judge with one click.
+Every submission runs inside a freshly-spawned, isolated container with hard CPU/RAM/PID limits, mirroring the architecture of Codeforces, Codechef, and AtCoder. Paired with a powerful Chrome Extension that scrapes test cases from the world's top competitive programming platforms and beams them directly into your local judge with one click.
 
 <br/>
 
