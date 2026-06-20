@@ -518,24 +518,6 @@ CodeArena/
 
 ---
 
-## Seed Problems
-
-Seven problems are automatically seeded into the database on first run:
-
-| ID | Title | Difficulty |
-|---|---|---|
-| `p-hello-world` | Hello World | Easy |
-| `p-sum-two` | Sum of Two Numbers | Easy |
-| `p-fibonacci` | Fibonacci Number | Easy |
-| `p-palindrome` | Palindrome Check | Easy |
-| `p-reverse` | Reverse a String | Easy |
-| `p-two-sum` | Two Sum (sorted) | Medium |
-| `p-word-count` | Word Frequency | Medium |
-
-Load them from the sidebar or send `problem_id` in a submission to compare against the stored expected output.
-
----
-
 ## Production Hardening Notes
 
 Before deploying publicly, make the following changes:
