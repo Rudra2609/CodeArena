@@ -391,12 +391,27 @@ export default function App() {
     try {
       if (currentFile) {
         // Update existing file
-        const res = await updateCodeFile(currentFile.id, {
-          source_code: code,
-          language: language
-        });
-        setCurrentFile(res);
-        alert("File updated successfully!");
+        try {
+          const res = await updateCodeFile(currentFile.id, {
+            source_code: code,
+            language: language
+          });
+          setCurrentFile(res);
+          alert("File updated successfully!");
+        } catch (updateErr) {
+          if (updateErr.message.includes("File not found")) {
+            // The file was deleted from the backend (e.g. database wiped). Recreate it.
+            const res = await saveCodeFile({
+              title: currentFile.title,
+              language,
+              source_code: code
+            });
+            setCurrentFile(res);
+            alert("File recovered and saved successfully!");
+          } else {
+            throw updateErr;
+          }
+        }
       } else {
         // Create new file
         let title = window.prompt("Enter a name for this file:", problemTitle || selectedProblem?.id || "solution");
