@@ -62,7 +62,7 @@ export default function FilesModal({ onClose, onLoadFile }) {
                 <div>
                   <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', color: 'var(--text)' }}>{file.title}</h4>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {file.language} &middot; {new Date(file.updated_at).toLocaleString()}
+                    {file.language} &middot; {new Date(file.updated_at + (file.updated_at.endsWith('Z') ? '' : 'Z')).toLocaleString()}
                   </div>
                 </div>
                 <button 
