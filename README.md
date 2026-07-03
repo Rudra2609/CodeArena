@@ -82,7 +82,6 @@ flowchart TB
     CeleryWorker --> DockerSocket["/var/run/docker.sock<br>socket mount"]
     DockerSocket --> DockerDaemon["HOST Docker Daemon"]
     DockerDaemon --> Python["python:3.11<br>Python"] & GCC["gcc:13/14<br>C/C++"] & Temurin["temurin:21<br>Java"] & Node["node:20<br>JavaScript"]
-    Health --> n1["Untitled Node"]
 
      Browser:::browserNode
      Nginx:::proxyNode
