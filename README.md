@@ -65,23 +65,48 @@ Every submission runs inside a freshly-spawned, isolated container with hard CPU
 
 ## Architecture
 
-```
-Browser ──→ Nginx :8080
-               ├── /         ──→ Frontend  (React + Vite + Monaco Editor)
-               └── /api/     ──→ API       (FastAPI + async SQLAlchemy)
-               └── /health   ──→ API       (liveness probe)
-                                    │
-                          enqueue ──┤──→ Redis :6379 ←── Celery Worker
-                                    │                         │
-                        read/write ─┴──→ PostgreSQL :5432     │
-                                                              │
-                                         /var/run/docker.sock (socket mount)
-                                                    │
-                                           HOST Docker Daemon
-                                                    │
-                          ┌──────────┬──────────┬──────────┬──────────┐
-                       python:3.11  gcc:13/14  temurin:21  node:20  ← ephemeral sandbox containers
-                        (Python)    (C/C++)    (Java)    (JavaScript)
+```mermaid
+---
+config:
+  layout: elk
+---
+flowchart TB
+    Browser["Browser"] -- HTTP --> Nginx["Nginx :8080"]
+    Nginx -- / --> Frontend["Frontend<br>React + Vite + Monaco Editor"]
+    Nginx -- /api/ --> API["API<br>FastAPI + async SQLAlchemy"]
+    Nginx -- /health --> Health["Health Probe<br>/health"]
+    Health --> API
+    API -- enqueue --> Redis["Redis :6379"]
+    API -- read/write --> PostgreSQL["PostgreSQL :5432"]
+    Redis --> CeleryWorker["Celery Worker"]
+    CeleryWorker --> DockerSocket["/var/run/docker.sock<br>socket mount"]
+    DockerSocket --> DockerDaemon["HOST Docker Daemon"]
+    DockerDaemon --> Python["python:3.11<br>Python"] & GCC["gcc:13/14<br>C/C++"] & Temurin["temurin:21<br>Java"] & Node["node:20<br>JavaScript"]
+    Health --> n1["Untitled Node"]
+
+     Browser:::browserNode
+     Nginx:::proxyNode
+     Frontend:::frontendNode
+     API:::apiNode
+     Health:::apiNode
+     Redis:::cacheNode
+     CeleryWorker:::workerNode
+     PostgreSQL:::dbNode
+     DockerSocket:::infraNode
+     DockerDaemon:::infraNode
+     Python:::runtimeNode
+     GCC:::runtimeNode
+     Temurin:::runtimeNode
+     Node:::runtimeNode
+    classDef browserNode stroke:#38bdf8,fill:#f0f9ff
+    classDef proxyNode stroke:#a78bfa,fill:#f5f3ff
+    classDef frontendNode stroke:#4ade80,fill:#f0fdf4
+    classDef apiNode stroke:#fb923c,fill:#fff7ed
+    classDef cacheNode stroke:#2dd4bf,fill:#f0fdfa
+    classDef dbNode stroke:#f87171,fill:#fef2f2
+    classDef workerNode stroke:#facc15,fill:#fefce8
+    classDef infraNode stroke:#a78bfa,fill:#f5f3ff
+    classDef runtimeNode stroke:#818cf8,fill:#eef2ff
 ```
 
 **Key design**: The worker container mounts `/var/run/docker.sock` from the host, so it communicates directly with the host Docker daemon. Code files are written to `/tmp/judge` on the **host** filesystem so the daemon can bind-mount them as `/code` into execution containers. Volume paths in `containers.run(volumes=...)` are always host paths — not paths inside the worker container.
