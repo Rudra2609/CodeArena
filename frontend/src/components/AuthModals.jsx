@@ -11,7 +11,7 @@ export default function AuthModals({ mode, onClose, onSwitchMode }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,16 +29,6 @@ export default function AuthModals({ mode, onClose, onSwitchMode }) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Registration failed");
-        onSwitchMode("verify");
-      } 
-      else if (mode === "verify") {
-        const res = await fetch(`${API_BASE}/verify-otp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, otp })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Verification failed");
         onSwitchMode("login");
       } 
       else if (mode === "login") {
@@ -63,10 +53,9 @@ export default function AuthModals({ mode, onClose, onSwitchMode }) {
     <div className="modal-backdrop">
       <div className="modal-content auth-modal">
         <button className="modal-close" onClick={onClose}>&times;</button>
-        <h2>{mode === 'register' ? 'Create Account' : mode === 'verify' ? 'Verify OTP' : 'Welcome Back'}</h2>
+        <h2>{mode === 'register' ? 'Create Account' : 'Welcome Back'}</h2>
         
         {error && <div className="auth-error">{error}</div>}
-        {mode === 'verify' && <div className="auth-info">Please check your server logs for the OTP sent to {email}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
           {mode === 'register' && (
@@ -76,10 +65,10 @@ export default function AuthModals({ mode, onClose, onSwitchMode }) {
             </div>
           )}
           
-          {(mode === 'register' || mode === 'login' || mode === 'verify') && (
+          {(mode === 'register' || mode === 'login') && (
             <div className="form-group">
               <label>Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required disabled={mode === 'verify'} />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
           )}
 
@@ -90,15 +79,10 @@ export default function AuthModals({ mode, onClose, onSwitchMode }) {
             </div>
           )}
 
-          {mode === 'verify' && (
-            <div className="form-group">
-              <label>6-Digit OTP</label>
-              <input type="text" maxLength={6} value={otp} onChange={e => setOtp(e.target.value)} required />
-            </div>
-          )}
+
 
           <button type="submit" disabled={loading} className="btn primary-btn full-width">
-            {loading ? "Please wait..." : mode === 'register' ? 'Sign Up' : mode === 'verify' ? 'Verify' : 'Log In'}
+            {loading ? "Please wait..." : mode === 'register' ? 'Sign Up' : 'Log In'}
           </button>
         </form>
 

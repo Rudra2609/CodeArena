@@ -12,14 +12,13 @@ import redis
 
 from database import get_db
 from models import User
-from schemas import UserCreate, UserResponse, VerifyOTP, Token
+from schemas import UserCreate, UserResponse, Token
 import os
 
 # Configuration
 SECRET_KEY = os.environ.get("SECRET_KEY", "super-secret-key-for-dev")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
-OTP_EXPIRE_SECONDS = 300 # 5 minutes
 
 # Setup tools
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -43,44 +42,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-import smtplib
-from email.mime.text import MIMEText
 
-def generate_otp() -> str:
-    return "".join(random.choices(string.digits, k=6))
-
-def send_otp_email(to_email: str, otp: str):
-    smtp_server = os.environ.get("SMTP_SERVER")
-    smtp_port = os.environ.get("SMTP_PORT")
-    smtp_user = os.environ.get("SMTP_USERNAME")
-    smtp_pass = os.environ.get("SMTP_PASSWORD")
-
-    if not all([smtp_server, smtp_port, smtp_user, smtp_pass]):
-        print("SMTP credentials not fully configured. Falling back to console.")
-        print("=" * 40)
-        print(f" OTP FOR {to_email}: {otp} ")
-        print("=" * 40)
-        return
-
-    try:
-        msg = MIMEText(f"Your CodeArena verification code is: {otp}\nThis code expires in {OTP_EXPIRE_SECONDS//60} minutes.")
-        msg["Subject"] = "CodeArena: Verify Your Email"
-        msg["From"] = smtp_user
-        msg["To"] = to_email
-
-        # Connect and send
-        server = smtplib.SMTP_SSL(smtp_server, int(smtp_port)) if int(smtp_port) == 465 else smtplib.SMTP(smtp_server, int(smtp_port))
-        if int(smtp_port) != 465:
-            server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.send_message(msg)
-        server.quit()
-        print(f"Email successfully sent to {to_email}")
-    except Exception as e:
-        print(f"Failed to send email to {to_email}: {e}")
-        print("=" * 40)
-        print(f" OTP FOR {to_email}: {otp} ")
-        print("=" * 40)
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -95,41 +57,14 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
         username=user.username,
         email=user.email,
         hashed_password=get_password_hash(user.password),
-        is_verified=False
+        is_verified=True
     )
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
 
-    # Generate and store OTP in Redis
-    otp = generate_otp()
-    redis_client.setex(f"otp:{user.email}", OTP_EXPIRE_SECONDS, otp)
-    
-    # Send email (or fallback to console if SMTP not configured)
-    send_otp_email(user.email, otp)
-
     return new_user
 
-@router.post("/verify-otp")
-async def verify_otp(payload: VerifyOTP, db: AsyncSession = Depends(get_db)):
-    # Check Redis for the OTP
-    stored_otp = redis_client.get(f"otp:{payload.email}")
-    if not stored_otp or stored_otp != payload.otp:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-
-    # Mark user as verified
-    result = await db.execute(select(User).where(User.email == payload.email))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.is_verified = True
-    await db.commit()
-
-    # Clear OTP from Redis
-    redis_client.delete(f"otp:{payload.email}")
-
-    return {"message": "Email successfully verified!"}
 
 @router.post("/login", response_model=Token)
 async def login(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -140,8 +75,6 @@ async def login(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
-    if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Email is not verified. Please verify your OTP.")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(

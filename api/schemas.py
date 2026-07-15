@@ -62,9 +62,6 @@ class UserResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-class VerifyOTP(BaseModel):
-    email: str
-    otp: str
 
 class Token(BaseModel):
     access_token: str

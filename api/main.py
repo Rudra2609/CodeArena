@@ -1,5 +1,5 @@
 """
-Online Code Judge  —  API service
+CodeArena  —  API service
 
 Endpoints
   POST   /api/submit                 Create submission, enqueue for execution
