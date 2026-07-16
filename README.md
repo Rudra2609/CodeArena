@@ -25,7 +25,7 @@ Every submission runs inside a freshly-spawned, isolated container with hard CPU
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Services](#services)
-- [Quick Start](#quick-start)
+- [Setup](#setup)
 - [Environment Variables](#environment-variables)
 - [Chrome Extension](#chrome-extension)
 - [Supported Languages](#supported-languages)
@@ -128,53 +128,9 @@ All services share the `judge_net` bridge network. Only `nginx` (8080) and `flow
 
 ---
 
-## Quick Start
+## Setup
 
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Docker Compose)
-- Git
-
-### 1. Clone and configure
-
-```bash
-git clone https://github.com/Rudra2609/CodeArena.git
-cd CodeArena
-
-# Copy the example env file and set your Postgres password
-cp .env.example .env
-# Edit .env and set POSTGRES_PASSWORD to something strong
-```
-
-### 2. Pre-pull sandbox images (recommended)
-
-Pulling images before the first submission avoids a cold-start delay while a test case is waiting:
-
-```bash
-make pull-images
-```
-
-This pulls `python:3.11-slim`, `gcc:13`, `openjdk:21-slim`, and `node:20-alpine`.
-
-### 3. Build and start
-
-```bash
-docker compose up --build -d
-```
-
-| URL | Description |
-|-----|-------------|
-| `http://localhost:8080` | App UI |
-| `http://localhost:8080/api/docs` | Interactive API docs (Swagger) |
-| `http://localhost:5555` | Flower — Celery job monitor |
-
-### 4. Verify it works
-
-```bash
-make test-submit
-```
-
-This submits a Python "Hello, World!" program and polls until the verdict arrives.
+Please refer to the [Setup Guide](Setup.md) for detailed instructions on how to easily run CodeArena on your local machine using our pre-built Docker Hub images.
 
 ---
 
