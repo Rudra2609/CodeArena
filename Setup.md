@@ -1,54 +1,69 @@
-# CodeArena - Quickstart Guide
+# CodeArena — Setup Guide
 
-Want to run CodeArena on your local machine? Because the entire platform is containerized and published on Docker Hub, you don't need to install Python, Node.js, or configure any complex environments. 
-
-Just follow these 3 simple steps to get the entire 7-service microservice architecture running in seconds!
+Follow these steps to get CodeArena running locally.
 
 ## Prerequisites
-* You must have **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** installed and running on your computer.
 
----
+- **Docker Desktop** — [Download here](https://www.docker.com/products/docker-desktop/) and install it on your PC or laptop.
 
-## Step 1: Download the Compose File
-You only need one file to run the entire project. Create a new folder on your computer, open a terminal inside that folder, and download the `docker-compose.yml` file:
+## 1. Pull the Docker Images
 
-**(Mac/Linux/Git Bash):**
+Open a terminal inside Docker Desktop (bottom-right corner) and run the following commands one by one:
+
+```bash
+docker pull phantom10/codearena-frontend:tagname
+docker pull phantom10/codearena-worker:tagname
+docker pull phantom10/codearena-api:tagname
+```
+
+## 2. Get the Docker Compose File
+
+Create a new folder, open a terminal inside it, and run:
+
 ```bash
 curl -O https://raw.githubusercontent.com/Rudra2609/CodeArena/main/docker-compose.yml
 ```
-*(Alternatively, you can just manually download the `docker-compose.yml` file from the GitHub repository and place it in an empty folder).*
 
-## Step 2: Set your Database Password
-CodeArena uses a secure PostgreSQL database. You need to set a password for it.
+## 3. Download the Chrome Extension
 
-In the exact same folder as your `docker-compose.yml` file, create a new file named exactly `.env` (don't forget the dot at the beginning!) and paste the following inside:
+1. Go to [downgit.github.io](https://downgit.github.io/)
+2. Paste the following link:
+   ```
+   https://github.com/Rudra2609/CodeArena/tree/0073815e7eaf9d1851f12831406878639dc0f106/chrome-extension
+   ```
+3. Download the resulting ZIP file and extract it into your project folder.
+
+## 4. Load the Extension in Chrome
+
+1. Open Chrome and go to `chrome://extensions/`
+2. Turn on **Developer mode** (top-right corner).
+3. Click **Load unpacked**.
+4. Select the `chrome-extension` folder from your project folder (the one you extracted).
+
+## 5. Create the Environment File
+
+In your project folder, create a file named `.env` with the following content:
 
 ```env
-POSTGRES_PASSWORD=MySuperSecretPassword123
+POSTGRES_PASSWORD=Any_Password_You_Want
 ```
-*(You can change the password to whatever you like, just make sure there are no spaces).*
 
-## Step 3: Run the Application!
-Open your terminal in that folder and run this single command:
+## 6. Start the Containers
+
+Open a new terminal in your project folder and run:
 
 ```bash
 docker compose up -d
 ```
 
-### What happens now?
-Docker will automatically reach out to Docker Hub and download the pre-compiled CodeArena images (`phantom10/codearena-api`, `phantom10/codearena-frontend`, `phantom10/codearena-worker`). 
+## 7. Access CodeArena
 
-Once the download finishes, Docker will boot up the entire system (Frontend, API, Worker, Redis, Postgres, and Nginx proxy).
+Once everything is up and running, open your browser and go to:
+
+```
+http://localhost:8080
+```
 
 ---
 
-## 🚀 Access the Platform
-
-Once the terminal says `Started` for all containers, you can access the platform in your browser!
-
-* **CodeArena Application:** [http://localhost:8080](http://localhost:8080)
-* **API Documentation (Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
-* **Live Task Monitoring (Flower):** [http://localhost:5555](http://localhost:5555)
-
-> [!TIP]
-> **Stopping the app:** To gracefully stop the platform, simply run `docker compose down` in your terminal. All of your saved code and database entries will persist securely on your hard drive for the next time you boot it up!
+✅ You're all set — CodeArena should now be running locally.
