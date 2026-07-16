@@ -1,8 +1,8 @@
-# CodeArena - Setup Guide
+# CodeArena - Quickstart Guide
 
 Want to run CodeArena on your local machine? Because the entire platform is containerized and published on Docker Hub, you don't need to install Python, Node.js, or configure any complex environments. 
 
-Just follow these 3 simple steps to get the entire 6-service microservice architecture running in seconds!
+Just follow these 3 simple steps to get the entire 7-service microservice architecture running in seconds!
 
 ## Prerequisites
 * You must have **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** installed and running on your computer.
@@ -38,7 +38,7 @@ docker compose up -d
 ### What happens now?
 Docker will automatically reach out to Docker Hub and download the pre-compiled CodeArena images (`phantom10/codearena-api`, `phantom10/codearena-frontend`, `phantom10/codearena-worker`). 
 
-Once the download finishes, Docker will boot up the entire system (Frontend, API, Worker, Redis, Postgres).
+Once the download finishes, Docker will boot up the entire system (Frontend, API, Worker, Redis, Postgres, and Nginx proxy).
 
 ---
 
