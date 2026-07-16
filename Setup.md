@@ -45,7 +45,7 @@ curl -O https://raw.githubusercontent.com/Rudra2609/CodeArena/main/docker-compos
 In your project folder, create a file named `.env` with the following content:
 
 ```env
-POSTGRES_PASSWORD = Any_Password_You_Want
+POSTGRES_PASSWORD = your_strong_password_here
 ```
 
 ## 6. Start the Containers
