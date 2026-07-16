@@ -53,7 +53,7 @@ Every submission runs inside a freshly-spawned, isolated container with hard CPU
 
 - **Monaco Editor** — Powered by VS Code's editor with syntax highlighting, JetBrains Mono / Fira Code font ligatures, and custom themes (VS Dark, Dracula, GitHub Dark).
 
-- **JWT Authentication + OTP Verification** — Secure registration flow with email OTP (or console fallback). Bcrypt password hashing, 1-week JWT tokens, and a change-password endpoint.
+- **JWT Authentication** — Secure registration and login flow. Bcrypt password hashing, 1-week JWT tokens, and a change-password endpoint.
 
 - **Persistent Code Files** — Authenticated users can save, rename, and reload their code files from the backend. Files are tied to accounts and accessible across sessions.
 
@@ -71,10 +71,9 @@ config:
   layout: elk
 ---
 flowchart TB
-    Browser["Browser"] -- HTTP --> Nginx["Nginx :8080"]
-    Nginx -- / --> Frontend["Frontend<br>React + Vite + Monaco Editor"]
-    Nginx -- /api/ --> API["API<br>FastAPI + async SQLAlchemy"]
-    Nginx -- /health --> Health["Health Probe<br>/health"]
+    Browser["Browser"] -- HTTP --> Frontend["Frontend :8080<br>React + Vite + Monaco Editor + Nginx Proxy"]
+    Frontend -- /api/ --> API["API<br>FastAPI + async SQLAlchemy"]
+    Frontend -- /health --> Health["Health Probe<br>/health"]
     Health --> API
     API -- enqueue --> Redis["Redis :6379"]
     API -- read/write --> PostgreSQL["PostgreSQL :5432"]
@@ -84,7 +83,7 @@ flowchart TB
     DockerDaemon --> Python["python:3.11<br>Python"] & GCC["gcc:13/14<br>C/C++"] & Temurin["temurin:21<br>Java"] & Node["node:20<br>JavaScript"]
 
      Browser:::browserNode
-     Nginx:::proxyNode
+
      Frontend:::frontendNode
      API:::apiNode
      Health:::apiNode
@@ -98,7 +97,7 @@ flowchart TB
      Temurin:::runtimeNode
      Node:::runtimeNode
     classDef browserNode stroke:#38bdf8,fill:#f0f9ff
-    classDef proxyNode stroke:#a78bfa,fill:#f5f3ff
+
     classDef frontendNode stroke:#4ade80,fill:#f0fdf4
     classDef apiNode stroke:#fb923c,fill:#fff7ed
     classDef cacheNode stroke:#2dd4bf,fill:#f0fdfa
@@ -116,15 +115,14 @@ flowchart TB
 
 | Service    | Image / Build               | Exposed Port | Role                                                              |
 |------------|-----------------------------|--------------|-------------------------------------------------------------------|
-| `nginx`    | `nginx:alpine`              | `8080 → 80`  | Reverse proxy routing traffic to frontend and API                 |
-| `frontend` | `./frontend` (Vite + React) | internal 3000| Monaco editor UI with multi-tab code editor                       |
+| `frontend` | `./frontend` (Vite + React) | `8080 → 3000`| Monaco editor UI with multi-tab code editor and reverse proxy     |
 | `api`      | `./api` (FastAPI)           | internal 8000| Submission handler, auth, problems, code files                    |
 | `worker`   | `./worker` (Celery)         | —            | Dequeues jobs, spawns Docker sandbox containers, writes results   |
 | `flower`   | `mher/flower:2.0`           | `5555`       | Celery task monitor                                               |
 | `redis`    | `redis:7-alpine`            | internal     | Job broker, async result cache, and OTP storage                   |
 | `postgres` | `postgres:16-alpine`        | internal     | Problems, users, submissions, and code files                      |
 
-All services share the `judge_net` bridge network. Only `nginx` (8080) and `flower` (5555) are exposed to the host.
+All services share the `judge_net` bridge network. Only `frontend` (8080) and `flower` (5555) are exposed to the host.
 
 ---
 
@@ -146,13 +144,6 @@ Copy `.env.example` to `.env` before starting. The only required variable is `PO
 | `TIME_LIMIT_SEC` | `5` | Wall-clock time limit for code execution (seconds) |
 | `JUDGE_TMP_DIR` | `/tmp/judge` | Host path for temporary code files |
 | `SECRET_KEY` | `super-secret-key-for-dev` | JWT signing secret — **change in production** |
-| `SMTP_SERVER` | *(optional)* | SMTP host for OTP emails |
-| `SMTP_PORT` | *(optional)* | SMTP port (`465` for SSL, `587` for STARTTLS) |
-| `SMTP_USERNAME` | *(optional)* | SMTP login username |
-| `SMTP_PASSWORD` | *(optional)* | SMTP login password |
-
-> **Note on SMTP:** If SMTP credentials are not configured, OTP codes are printed to the API container's console instead of being emailed. Run `docker compose logs api` to retrieve them during development.
-
 ---
 
 ## Chrome Extension
