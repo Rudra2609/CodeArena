@@ -1,4 +1,4 @@
-# CodeArena — Setup Guide
+# CodeArena - Setup Guide
 
 Follow these steps to get CodeArena running locally.
 
