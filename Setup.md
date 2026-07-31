@@ -66,4 +66,4 @@ http://localhost:8080
 
 ---
 
-✅ You're all set — CodeArena should now be running locally.
+You're all set — CodeArena should now be running locally.
