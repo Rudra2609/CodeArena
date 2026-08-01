@@ -11,9 +11,9 @@ Follow these steps to get CodeArena running locally.
 Open a terminal inside Docker Desktop (bottom-right corner) and run the following commands one by one:
 
 ```bash
-docker pull phantom10/codearena-frontend:tagname
-docker pull phantom10/codearena-worker:tagname
-docker pull phantom10/codearena-api:tagname
+docker pull phantom10/codearena-frontend
+docker pull phantom10/codearena-worker
+docker pull phantom10/codearena-api
 ```
 
 ## 2. Get the Docker Compose File
